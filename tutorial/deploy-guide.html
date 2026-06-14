@@ -1,0 +1,1160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMDB 新服务器部署操作手册</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #d4724a;
+    --code-bg: #f4f3f0;
+    --border: #e6e4dd;
+    --card-bg: #fff;
+    --tag-bg: #fef3ed;
+    --tag-text: #c0532a;
+    --link: #c0532a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 28px 100px; }
+
+  .hero {
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+  }
+  .hero h1 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .hero .sub { font-size: 1.15rem; color: var(--muted); max-width: 600px; }
+  .hero .meta {
+    margin-top: 28px;
+    display: flex; gap: 18px; flex-wrap: wrap;
+    font-size: .88rem; color: var(--muted);
+  }
+  .hero .meta span {
+    background: var(--tag-bg); color: var(--tag-text);
+    padding: 4px 12px; border-radius: 20px; font-weight: 500;
+  }
+
+  .toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 60px;
+  }
+  .toc h2 { font-size: 1.15rem; margin-bottom: 16px; }
+  .toc ol { padding-left: 22px; }
+  .toc li { margin: 8px 0; }
+  .toc a { color: var(--link); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  section { margin-bottom: 72px; }
+  h2 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 1.8rem; font-weight: 700; margin-bottom: 12px;
+    line-height: 1.35; padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  h3 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 1.3rem; font-weight: 700; margin: 36px 0 12px;
+  }
+  h4 { font-weight: 600; font-size: 1.05rem; margin: 28px 0 8px; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 24px; margin: 14px 0; }
+  li { margin: 6px 0; }
+
+  code {
+    font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: .88em; background: var(--code-bg);
+    padding: 2px 6px; border-radius: 4px;
+  }
+  pre {
+    font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: .85rem;
+    background: #1e1e1e; color: #d4d4d4;
+    padding: 18px 22px; border-radius: 8px;
+    overflow-x: auto; line-height: 1.6; margin: 18px 0;
+  }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px; margin: 24px 0;
+    background: var(--tag-bg); border-radius: 0 8px 8px 0;
+  }
+  .callout.warn { border-color: #e0a800; background: #fffbed; }
+  .callout.info { border-color: #3b82f6; background: #eff6ff; }
+
+  table {
+    width: 100%; border-collapse: collapse;
+    margin: 20px 0; font-size: .92em;
+  }
+  th, td {
+    text-align: left; padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-weight: 600; background: var(--code-bg);
+    font-size: .85em; text-transform: uppercase; letter-spacing: .04em;
+  }
+  tr:hover td { background: #fdfdfb; }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px; margin: 22px 0;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 22px;
+  }
+  .card h4 { margin: 0 0 8px; font-size: 1rem; }
+  .card p { margin: 0; font-size: .9rem; color: var(--muted); }
+
+  .diagram {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px; padding: 24px 28px; margin: 22px 0;
+    font-family: "IBM Plex Mono", "SF Mono", monospace;
+    font-size: .84rem; line-height: 1.7;
+    white-space: pre; overflow-x: auto;
+  }
+
+  .step {
+    display: flex; gap: 18px; margin: 24px 0;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 38px; height: 38px; border-radius: 50%;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-weight: 700; font-size: 1.1rem;
+  }
+  .step-body h4 { margin: 0 0 4px; }
+
+  .checklist { list-style: none; padding-left: 0; }
+  .checklist li { padding: 8px 0; }
+  .checklist li::before { content: "☐ "; color: var(--muted); font-size: 1.1em; }
+
+  footer {
+    margin-top: 100px; padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: .85rem; color: var(--muted);
+  }
+
+  @media (max-width: 680px) {
+    .hero h1 { font-size: 2rem; }
+    .container { padding: 24px 16px 60px; }
+    pre { font-size: .78rem; padding: 14px 16px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .hero { padding: 40px 0 36px; }
+  }
+
+  .back-top {
+    position: fixed; bottom: 28px; right: 28px;
+    width: 42px; height: 42px; border-radius: 50%;
+    background: var(--accent); color: #fff; border: none;
+    cursor: pointer; font-size: 1.2rem; display: none;
+    align-items: center; justify-content: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    z-index: 100;
+  }
+  .back-top.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header class="hero">
+  <h1>CMDB 新服务器部署操作手册</h1>
+  <p class="sub">从零开始在新服务器上部署 CMDB 资产管理系统——Go 1.26.3 + Vue3(pnpm) + OpenResty(80端口) + 远程数据库</p>
+  <div class="meta">
+    <span>Go 1.26.3</span>
+    <span>pnpm</span>
+    <span>OpenResty 80</span>
+    <span>远程 PostgreSQL</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">环境准备</a></li>
+    <li><a href="#s2">代码文件清单</a></li>
+    <li><a href="#s3">构建 Go 后端</a></li>
+    <li><a href="#s4">构建 Vue3 前端</a></li>
+    <li><a href="#s5">配置 OpenResty</a></li>
+    <li><a href="#s6">启动所有服务</a></li>
+    <li><a href="#s7">验证与测试</a></li>
+    <li><a href="#s8">补充说明</a></li>
+    <li><a href="#appendix">附录：速查表</a></li>
+  </ol>
+</nav>
+
+<!-- ====== Chapter 1: 环境准备 ====== -->
+<section id="s1">
+  <h2>1. 环境准备</h2>
+
+  <div class="callout info">
+    <strong>前提条件：</strong>服务器已安装 OpenResty（用户已确认），Go 版本为 1.26.3。
+  </div>
+
+  <h3>1.1 确认 Go 版本</h3>
+  <pre><code>$ go version
+go version go1.26.3 linux/amd64</code></pre>
+
+  <p>如果版本不是 1.26.3，从 <code>go.dev/dl/</code> 下载安装：</p>
+  <pre><code>$ wget https://go.dev/dl/go1.26.3.linux-amd64.tar.gz
+$ sudo rm -rf /usr/local/go
+$ sudo tar -C /usr/local -xzf go1.26.3.linux-amd64.tar.gz
+$ export PATH=$PATH:/usr/local/go/bin
+$ go version</code></pre>
+
+  <h3>1.2 安装 Node.js（全新服务器必做）</h3>
+
+  <p>如果服务器完全没有 Node.js，按以下步骤安装：</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>安装 Node.js 20 LTS</h4>
+      <pre><code># 方法一：NodeSource 官方源（推荐，Debian/Ubuntu）
+$ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+$ sudo apt-get install -y nodejs
+
+# 方法二：nvm（支持版本切换）
+$ curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+$ source ~/.bashrc
+$ nvm install 20
+$ nvm use 20
+
+# 方法三：CentOS/RHEL
+$ curl -fsSL https://rpm.nodesource.com/setup_20.x | sudo bash -
+$ sudo yum install -y nodejs</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>验证 Node.js 和 npm</h4>
+      <pre><code>$ node --version
+v20.19.0        # 20.x 即可，无需特定小版本
+$ npm --version
+10.8.2</code></pre>
+    </div>
+  </div>
+
+  <h3>1.3 安装 pnpm 包管理器</h3>
+
+  <p>pnpm 比 npm 快 2-3 倍，节省磁盘空间。Node.js 16.9+ 自带了 corepack，可以直接启用：</p>
+
+  <pre><code># 方法一：corepack（推荐）
+$ sudo corepack enable
+$ corepack prepare pnpm@9.15.0 --activate
+$ pnpm --version
+9.15.0
+
+# 方法二：npm 全局安装（corepack 不可用时）
+$ sudo npm install -g pnpm@9.15.0
+$ pnpm --version
+9.15.0</code></pre>
+
+  <div class="callout info">
+    <strong>为什么指定 pnpm 9.15.0？</strong>项目的 <code>package.json</code> 中声明了 <code>"packageManager": "pnpm@9.15.0"</code>，使用相同版本可以保证依赖安装的一致性。
+  </div>
+
+  <h3>1.4 理解 Vue3 + Vite 技术栈（只需安装一次）</h3>
+
+  <p>新服务器上不需要 "初始化" Vue3 项目——项目的 <code>frontend/</code> 目录已包含完整的 Vue3 + Vite 工程代码。你只需要在 <code>frontend/</code> 目录下执行 <code>pnpm install</code>，pnpm 会根据 <code>package.json</code> 自动安装以下内容：</p>
+
+  <table>
+    <tr><th>包名</th><th>类别</th><th>作用</th></tr>
+    <tr><td><code>vue</code> (3.5+)</td><td>运行时依赖</td><td>Vue3 框架核心</td></tr>
+    <tr><td><code>vue-router</code> (4.5+)</td><td>运行时依赖</td><td>前端路由（Hash 模式）</td></tr>
+    <tr><td><code>vite</code> (6.2+)</td><td>开发依赖</td><td>开发服务器 + 生产构建</td></tr>
+    <tr><td><code>@vitejs/plugin-vue</code></td><td>开发依赖</td><td>Vite 的 Vue3 单文件组件插件</td></tr>
+    <tr><td><code>typescript</code> (5.7)</td><td>开发依赖</td><td>TypeScript 编译器</td></tr>
+    <tr><td><code>vue-tsc</code></td><td>开发依赖</td><td>Vue3 TypeScript 类型检查</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>关键理解：</strong>你不需要在新服务器上运行 <code>npm create vue@latest</code> 或 <code>create-vite</code> 来初始化项目——项目已经初始化好了。你只需要 <code>pnpm install</code> 安装依赖，然后 <code>pnpm build</code> 构建即可。
+  </div>
+
+  <h3>1.5 确认 OpenResty 已安装</h3>
+  <pre><code>$ /usr/local/openresty/bin/openresty -v
+nginx version: openresty/1.25.3.1
+
+$ ls /usr/local/openresty/nginx/conf/
+nginx.conf  mime.types  ...</code></pre>
+
+  <h3>1.6 确认远程数据库可达</h3>
+  <pre><code>$ nc -zv 3418.s.kuaicdn.cn 34189
+Connection to 3418.s.kuaicdn.cn 34189 port [tcp/*] succeeded!</code></pre>
+
+  <p>如果 nc 不可用，用 telnet 或直接 ping：</p>
+  <pre><code>$ telnet 3418.s.kuaicdn.cn 34189
+# 或者
+$ ping 3418.s.kuaicdn.cn</code></pre>
+
+  <h3>1.7 创建工作目录</h3>
+  <pre><code>$ sudo mkdir -p /app /app/dist
+$ sudo chown -R $(whoami):$(whoami) /app
+$ mkdir -p ~/workspace && cd ~/workspace</code></pre>
+
+  <div class="callout warn">
+    <strong>注意：</strong>生产环境建议创建一个专用用户运行服务（如 <code>cmdb</code>），不要用 root 运行。
+  </div>
+</section>
+
+<!-- ====== Chapter 2: 代码文件清单 ====== -->
+<section id="s2">
+  <h2>2. 代码文件清单</h2>
+
+  <p>以下分类说明哪些文件可以直接复制，哪些需要调整。</p>
+
+  <h3>2.1 直接复制（不需修改）</h3>
+
+  <table>
+    <tr><th>文件/目录</th><th>说明</th></tr>
+    <tr><td><code>models/</code></td><td>所有数据模型定义（6个文件），与新环境无关</td></tr>
+    <tr><td><code>handlers/</code></td><td>所有请求处理逻辑（5个文件），通用代码</td></tr>
+    <tr><td><code>middleware/auth.go</code></td><td>JWT 认证 + 管理员鉴权中间件</td></tr>
+    <tr><td><code>utils/jwt.go</code></td><td>JWT Token 生成/验证工具</td></tr>
+    <tr><td><code>config/config.go</code></td><td>配置加载逻辑（自动读取 .env 或环境变量）</td></tr>
+    <tr><td><code>database/postgres.go</code></td><td>PostgreSQL 连接 + AutoMigrate + 用户初始化</td></tr>
+    <tr><td><code>database/redis.go</code></td><td>Redis 连接（连接失败不退出，降级运行）</td></tr>
+    <tr><td><code>main.go</code></td><td>程序入口（路由注册、端口绑定）</td></tr>
+    <tr><td><code>frontend/src/</code></td><td>所有 Vue3 页面组件、路由、API 层、样式</td></tr>
+    <tr><td><code>frontend/index.html</code></td><td>HTML 入口</td></tr>
+    <tr><td><code>frontend/vite.config.ts</code></td><td>Vite 构建配置</td></tr>
+    <tr><td><code>frontend/tsconfig.json</code></td><td>TypeScript 编译配置</td></tr>
+    <tr><td><code>frontend/.npmrc</code></td><td>npm 镜像配置（国内加速）</td></tr>
+  </table>
+
+  <h3>2.2 需要调整</h3>
+
+  <table>
+    <tr><th>文件</th><th>调整内容</th><th>调整原因</th></tr>
+    <tr><td><code>go.mod</code></td><td>go 1.23 → go 1.26.3</td><td>适配新服务器 Go 版本</td></tr>
+    <tr><td><code>openresty/nginx.conf</code></td><td>端口改 80，路径用 /app/dist</td><td>使用 80 端口 + 原生 OpenResty</td></tr>
+    <tr><td><code>frontend/package.json</code></td><td>添加 packageManager 字段</td><td>指定 pnpm 版本</td></tr>
+  </table>
+
+  <h3>2.3 不需要的文件</h3>
+
+  <table>
+    <tr><th>文件</th><th>原因</th></tr>
+    <tr><td><code>docker-compose.yml</code></td><td>不使用 Docker，直接原生运行</td></tr>
+    <tr><td><code>Dockerfile</code></td><td>不使用 Docker</td></tr>
+    <tr><td><code>Dockerfile.frontend</code></td><td>不使用 Docker</td></tr>
+    <tr><td><code>init-db.sql</code></td><td>远程数据库已存在，不需要初始化</td></tr>
+    <tr><td><code>postgresql.conf</code></td><td>远程数据库配置</td></tr>
+    <tr><td><code>frontend/package-lock.json</code></td><td>使用 pnpm，不是 npm</td></tr>
+  </table>
+
+  <div class="callout info"><strong>新增依赖：</strong>此版本新增 <code>github.com/xuri/excelize/v2</code> 用于 Excel 导出功能。构建时需要设置 <code>GOPROXY=https://goproxy.cn,direct</code>（国内加速）。</div>
+
+  <h3>2.4 完整文件复制清单</h3>
+
+  <div class="diagram">
+项目目录结构 (复制到新服务器 ~/workspace/cmdb/)
+├── .env                        # 环境变量
+├── go.mod                      # Go 模块定义 (已更新 go 1.26.3)
+├── go.sum                      # Go 依赖哈希
+├── main.go                     # 程序入口
+├── start.sh                    # 一键启动脚本
+├── config/
+│   └── config.go
+├── database/
+│   ├── postgres.go
+│   └── redis.go
+├── handlers/
+│   ├── auth.go
+│   ├── machine.go
+│   ├── machine_list.go
+│   ├── deletion.go
+│   ├── export.go
+
+│   ├── network_info.go
+│   └── idc_info.go
+├── middleware/
+│   └── auth.go
+├── models/
+│   ├── users.go
+│   ├── idc_info.go
+│   ├── machine_info.go
+│   ├── business_info.go
+│   ├── deleted_record.go
+
+│   ├── network_info.go
+│   ├── response.go
+│   └── version_info.go
+├── utils/
+│   └── jwt.go
+├── openresty/
+│   └── nginx.conf
+└── frontend/
+    ├── package.json
+    ├── .npmrc
+    ├── tsconfig.json
+    ├── vite.config.ts
+    ├── index.html
+    └── src/
+        ├── main.ts
+        ├── env.d.ts
+        ├── App.vue
+        ├── styles/main.css
+        ├── router/index.ts
+        ├── api/index.ts
+        └── views/
+            ├── Login.vue
+            ├── MachineInfo.vue
+            ├── NetworkInfo.vue
+            ├── IDCInfo.vue
+            └── BusinessInfo.vue</div>
+│           ├── Deletion.vue
+
+
+  <div class="callout">
+    <strong>部署方法：</strong>推荐用 git 管理代码，在新服务器上 <code>git clone</code> 后直接使用。或者用 <code>rsync -avz</code> 从本地同步。
+  </div>
+</section>
+
+<!-- ====== Chapter 3: 构建 Go 后端 ====== -->
+<section id="s3">
+  <h2>3. 构建 Go 后端</h2>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>进入项目目录</h4>
+      <pre><code>$ cd ~/workspace/cmdb</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>确认 go.mod 版本为 1.26.3</h4>
+      <pre><code>$ head -3 go.mod
+module gin-postgre-project
+go 1.26.3</code></pre>
+      <p>如果不是，手动修改第一行 <code>go 1.26.3</code>。删除 <code>toolchain</code> 行（如果存在）。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>配置 Go 代理（国内加速）</h4>
+      <pre><code>$ go env -w GOPROXY=https://goproxy.cn,direct
+$ go env -w GO111MODULE=on</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>下载依赖并编译</h4>
+      <pre><code>$ go mod tidy
+$ go mod download
+$ CGO_ENABLED=0 go build -o cmdb-api .</code></pre>
+      <p>编译成功后会生成 <code>cmdb-api</code> 可执行文件。</p>
+    </div>
+  </div>
+
+  <h3>3.2 环境变量说明</h3>
+
+  <p>创建 <code>.env</code> 文件：</p>
+  <pre><code>DB_HOST=3418.s.kuaicdn.cn
+DB_PORT=34189
+DB_USER=kuaicdn
+DB_PASSWORD=abcd001002
+DB_NAME=machine_info
+DB_SSLMODE=disable
+REDIS_HOST=localhost
+REDIS_PORT=6379
+JWT_SECRET=9f8e7d6c5b4a3928170605f4e3d2c1b0a9f8e7d6c5b4a3928170605f4e3d2c1b0
+JWT_EXPIRE_HOURS=72</code></pre>
+
+  <table>
+    <tr><th>变量</th><th>说明</th><th>默认值</th></tr>
+    <tr><td><code>DB_HOST</code></td><td>数据库地址（远程）</td><td>3418.s.kuaicdn.cn</td></tr>
+    <tr><td><code>DB_PORT</code></td><td>数据库端口</td><td>34189</td></tr>
+    <tr><td><code>DB_USER</code></td><td>数据库用户</td><td>kuaicdn</td></tr>
+    <tr><td><code>DB_PASSWORD</code></td><td>数据库密码</td><td>abcd001002</td></tr>
+    <tr><td><code>DB_NAME</code></td><td>数据库名</td><td>machine_info</td></tr>
+    <tr><td><code>DB_SSLMODE</code></td><td>SSL 模式</td><td>disable</td></tr>
+    <tr><td><code>REDIS_HOST</code></td><td>Redis 地址（可选）</td><td>localhost</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td>JWT 签名密钥</td><td>（随机字符串）</td></tr>
+    <tr><td><code>JWT_EXPIRE_HOURS</code></td><td>Token 有效期</td><td>72</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>安全提醒：</strong>生产环境请更换 JWT_SECRET 为新的随机字符串。可以用 <code>openssl rand -hex 32</code> 生成。
+  </div>
+</section>
+
+<!-- ====== Chapter 4: 构建 Vue3 前端 ====== -->
+<section id="s4">
+  <h2>4. 构建 Vue3 前端</h2>
+
+  <p>以下假设你已将 <code>frontend/</code> 目录完整复制到 <code>~/workspace/cmdb/frontend/</code>。该目录已包含完整的 Vue3 + Vite + TypeScript 工程代码。</p>
+
+  <h3>4.1 安装依赖（pnpm install）</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>进入前端目录</h4>
+      <pre><code>$ cd ~/workspace/cmdb/frontend
+$ ls
+package.json  pnpm-lock.yaml  .npmrc  tsconfig.json  vite.config.ts  index.html  src/</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>执行 pnpm install</h4>
+      <pre><code>$ pnpm install</code></pre>
+      <p>这一步会根据 <code>package.json</code> 安装所有依赖到 <code>node_modules/</code>，同时生成 <code>pnpm-lock.yaml</code>（锁定版本）。</p>
+      <p>输出示例：</p>
+      <pre><code>Packages: +45
+++++++++++++++++++++++++++++++++++++++++++
+Progress: resolved 45, reused 0, downloaded 45, done
+
+dependencies:
++ vue 3.5.13
++ vue-router 4.5.0
+
+devDependencies:
++ @vitejs/plugin-vue 5.2.3
++ typescript 5.7.3
++ vite 6.2.4
++ vue-tsc 2.2.8
+
+Done in 15.3s</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>验证安装结果</h4>
+      <pre><code>$ ls node_modules/ | head -5
+@vitejs
+typescript
+vite
+vue
+vue-router
+
+$ du -sh node_modules/
+45M     node_modules/</code></pre>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>首次安装提示：</strong>如果服务器网络较慢，<code>.npmrc</code> 已配置了国内镜像 <code>registry=https://registry.npmmirror.com</code>，会加速下载。如果 pnpm 报 "lockfile" 相关错误，删除 <code>pnpm-lock.yaml</code> 后重试 <code>pnpm install</code>。
+  </div>
+
+  <h3>4.2 生产构建（pnpm build）</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>执行构建</h4>
+      <pre><code>$ pnpm build</code></pre>
+      <p><code>pnpm build</code> 实际执行的是 <code>package.json</code> 中的 <code>"build": "vite build"</code>。Vite 会：</p>
+      <ul>
+        <li>编译 TypeScript → JavaScript</li>
+        <li>编译 Vue 单文件组件（.vue）→ JS/CSS</li>
+        <li>Tree-shaking 移除未使用代码</li>
+        <li>代码压缩、资源 hash 命名</li>
+        <li>输出到 <code>dist/</code> 目录</li>
+      </ul>
+      <p>输出示例：</p>
+      <pre><code>vite v6.2.4 building for production...
+transforming...
+✓ 42 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                   0.45 kB │ gzip: 0.32 kB
+dist/assets/index-C8pkBfRK.css   6.72 kB │ gzip: 1.86 kB
+dist/assets/index-DJgYVOhC.js   98.15 kB │ gzip: 37.78 kB
+✓ built in 1.82s</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>验证构建产物</h4>
+      <pre><code>$ ls -la dist/
+total 16
+drwxr-xr-x 3 root root 4096 May 19 10:00 .
+drwxr-xr-x 5 root root 4096 May 19 10:00 ..
+drwxr-xr-x 2 root root 4096 May 19 10:00 assets
+-rw-r--r-- 1 root root  461 May 19 10:00 index.html
+
+$ ls dist/assets/
+index-C8pkBfRK.css  index-DJgYVOhC.js</code></pre>
+    </div>
+  </div>
+
+  <h3>4.3 部署到 OpenResty 静态目录</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>复制 dist 到 /app/dist/</h4>
+      <pre><code>$ sudo mkdir -p /app/dist
+$ sudo cp -r dist/* /app/dist/
+$ ls /app/dist/
+index.html  assets/</code></pre>
+      <p>每次前端代码更新后，重新执行这两行命令即可完成前端部署。</p>
+    </div>
+  </div>
+
+  <div class="callout info">
+    <strong>缓存说明：</strong>构建产物中的 JS/CSS 文件带有内容 hash（如 <code>index-DJgYVOhC.js</code>），内容变更时 hash 会变化，URL 随之改变。因此 OpenResty 对 <code>/assets/</code> 设置 30 天缓存是安全的——旧版本文件永远不会被请求。
+  </div>
+
+  <h3>4.4 本地开发模式（可选）</h3>
+
+  <p>如果需要在服务器上修改前端代码并实时预览，可以使用 Vite 开发服务器：</p>
+  <pre><code>$ cd ~/workspace/cmdb/frontend
+$ pnpm dev
+
+  VITE v6.2.4  ready in 320 ms
+  ➜  Local:   http://localhost:34187/
+  ➜  Network: http://192.168.1.100:34187/</code></pre>
+
+  <p>开发模式下 Vite 会自动将 <code>/api</code> 请求代理到 <code>localhost:34185</code>（在 <code>vite.config.ts</code> 中配置），实现前后端联调。</p>
+
+  <div class="callout warn">
+    <strong>开发模式仅用于调试。</strong>生产环境务必使用 <code>pnpm build</code> 构建并通过 OpenResty 服务静态文件。Vite dev server 不适合生产使用。
+  </div>
+
+  <h3>4.5 常见问题</h3>
+
+  <table>
+    <tr><th>现象</th><th>原因</th><th>解决</th></tr>
+    <tr><td><code>pnpm: command not found</code></td><td>pnpm 未安装</td><td><code>sudo npm install -g pnpm@9.15.0</code></td></tr>
+    <tr><td><code>node: command not found</code></td><td>Node.js 未安装</td><td>参考 1.2 节安装 Node.js 20</td></tr>
+    <tr><td><code>ERR_PNPM_NO_MATCHING_VERSION</code></td><td>pnpm 版本太旧</td><td><code>pnpm --version</code> 确认 >= 9.0</td></tr>
+    <tr><td><code>npm install</code> 报错</td><td>使用了错误的包管理器</td><td>请用 <code>pnpm install</code>，不是 npm</td></tr>
+    <tr><td><code>vite: not found</code></td><td>依赖未安装</td><td>确认已执行 <code>pnpm install</code></td></tr>
+    <tr><td>构建后页面空白</td><td>dist 未正确复制到 /app/dist/</td><td>检查 <code>ls /app/dist/</code></td></tr>
+  </table>
+</section>
+
+<!-- ====== Chapter 5: 配置 OpenResty ====== -->
+<section id="s5">
+  <h2>5. 配置 OpenResty</h2>
+
+  <h3>5.1 nginx.conf 完整配置</h3>
+
+  <p>将此配置文件复制到 OpenResty 配置目录：</p>
+
+  <pre><code>worker_processes auto;
+error_log /usr/local/openresty/nginx/logs/error.log warn;
+pid /usr/local/openresty/nginx/logs/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       mime.types;
+    default_type  application/octet-stream;
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /usr/local/openresty/nginx/logs/access.log main;
+
+    sendfile        on;
+    keepalive_timeout  65;
+    gzip  on;
+    gzip_types text/plain text/css application/json
+              application/javascript text/xml;
+
+    # ---- 后端 API 上游 ----
+    upstream backend_api {
+        server 127.0.0.1:34185;
+    }
+
+    server {
+        listen 80;
+        server_name _;
+
+        # 前端静态文件根目录
+        root /app/dist;
+        index index.html;
+
+        # 静态资源长期缓存（30天）
+        location /assets/ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+
+        # API 反向代理到 Go 后端
+        location /api/ {
+            proxy_pass http://backend_api;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 60s;
+            proxy_connect_timeout 5s;
+        }
+
+        # SPA fallback：所有非 API 请求返回 index.html
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}</code></pre>
+
+  <h3>5.2 配置说明</h3>
+
+  <table>
+    <tr><th>配置项</th><th>作用</th></tr>
+    <tr><td><code>listen 80</code></td><td>监听 80 端口（HTTP 标准端口）</td></tr>
+    <tr><td><code>root /app/dist</code></td><td>前端构建产物的存放路径</td></tr>
+    <tr><td><code>location /assets/</code></td><td>JS/CSS/图片等带 hash 的静态资源，缓存 30 天</td></tr>
+    <tr><td><code>location /api/</code></td><td>匹配 <code>/api/*</code> 的请求，反向代理到 Go 后端 34185</td></tr>
+    <tr><td><code>try_files $uri /index.html</code></td><td>SPA fallback——URL 刷新时不会出现 404</td></tr>
+    <tr><td><code>upstream backend_api</code></td><td>定义后端服务地址，方便扩展多个后端实例</td></tr>
+    <tr><td><code>gzip on</code></td><td>压缩文本类响应，减少带宽消耗</td></tr>
+  </table>
+
+  <h3>5.3 加载配置</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>复制配置文件</h4>
+      <pre><code>$ sudo cp ~/workspace/cmdb/openresty/nginx.conf \
+    /usr/local/openresty/nginx/conf/nginx.conf</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>测试配置文件语法</h4>
+      <pre><code>$ sudo /usr/local/openresty/bin/openresty -t
+nginx: the configuration file ... syntax is ok
+nginx: configuration file ... test is successful</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>重载 OpenResty</h4>
+      <pre><code>$ sudo /usr/local/openresty/bin/openresty -s reload</code></pre>
+      <p>如果 OpenResty 未启动，使用：</p>
+      <pre><code>$ sudo /usr/local/openresty/bin/openresty</code></pre>
+    </div>
+  </div>
+
+  <h3>5.4 请求流程</h3>
+
+  <div class="diagram">
+浏览器 → http://服务器:80
+    │
+    ├── /                     → /app/dist/index.html (Vue SPA)
+    ├── /assets/xxx.js        → /app/dist/assets/xxx.js (30天缓存)
+    ├── /#/machine-info       → index.html (Hash路由由Vue处理)
+    └── /api/machines?...     → http://127.0.0.1:34185/api/machines?... (反向代理)</div>
+
+  <div class="callout info">
+    <strong>Hash 路由优势：</strong>Vue Router 使用 Hash 模式（URL 中有 #），例如 <code>http://服务器/#/machine-info</code>。# 后面的内容不会发送到服务器，完全由浏览器端的 Vue Router 处理。这使得 SPA fallback 配置（try_files）成为可选的安全保障。
+  </div>
+</section>
+
+<!-- ====== Chapter 6: 启动所有服务 ====== -->
+<section id="s6">
+  <h2>6. 启动所有服务</h2>
+
+  <h3>6.1 一键启动（推荐）</h3>
+
+  <p>使用项目自带的 <code>start.sh</code> 脚本：</p>
+  <pre><code>$ cd ~/workspace/cmdb
+$ chmod +x start.sh
+$ ./start.sh</code></pre>
+
+  <p>此脚本自动完成：构建前端 → 部署 dist → 编译 Go → 配置 OpenResty → 启动 API。</p>
+
+  <h3>6.2 手动逐步启动</h3>
+
+  <p>如果需要分步控制，按以下顺序操作：</p>
+
+  <h4>第 1 步：启动 Go API</h4>
+  <pre><code>$ cd ~/workspace/cmdb
+$ export DB_HOST=3418.s.kuaicdn.cn
+$ export DB_PORT=34189
+$ export DB_USER=kuaicdn
+$ export DB_PASSWORD=abcd001002
+$ export DB_NAME=machine_info
+$ export DB_SSLMODE=disable
+$ export JWT_SECRET=9f8e7d6c5b4a3928170605f4e3d2c1b0a9f8e7d6c5b4a3928170605f4e3d2c1b0
+$ export JWT_EXPIRE=72
+
+# 后台启动
+$ nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 &
+$ echo $!  # 记录进程 PID</code></pre>
+
+  <h4>第 2 步：确认 API 已启动</h4>
+  <pre><code>$ sleep 2
+$ curl http://localhost:34185/api/ping
+# 返回 401 (需要登录) 说明 API 正常工作</code></pre>
+
+  <h4>第 3 步：启动/重载 OpenResty</h4>
+  <pre><code>$ sudo /usr/local/openresty/bin/openresty -t
+$ sudo /usr/local/openresty/bin/openresty -s reload
+# 如果未启动: sudo /usr/local/openresty/bin/openresty</code></pre>
+
+  <h3>6.3 服务管理命令</h3>
+
+  <table>
+    <tr><th>操作</th><th>命令</th></tr>
+    <tr><td>启动 API</td><td><code>nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 &amp;</code></td></tr>
+    <tr><td>停止 API</td><td><code>pkill -f cmdb-api</code></td></tr>
+    <tr><td>重启 API</td><td><code>pkill -f cmdb-api; sleep 1; nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 &amp;</code></td></tr>
+    <tr><td>启动 OpenResty</td><td><code>sudo /usr/local/openresty/bin/openresty</code></td></tr>
+    <tr><td>停止 OpenResty</td><td><code>sudo /usr/local/openresty/bin/openresty -s stop</code></td></tr>
+    <tr><td>重载 OpenResty</td><td><code>sudo /usr/local/openresty/bin/openresty -s reload</code></td></tr>
+    <tr><td>查看 API 日志</td><td><code>tail -f /var/log/cmdb-api.log</code></td></tr>
+    <tr><td>查看 OpenResty 日志</td><td><code>tail -f /usr/local/openresty/nginx/logs/access.log</code></td></tr>
+  </table>
+</section>
+
+<!-- ====== Chapter 7: 验证与测试 ====== -->
+<section id="s7">
+  <h2>7. 验证与测试</h2>
+
+  <h3>7.1 验证清单</h3>
+
+  <ul class="checklist">
+    <li>Go API 进程运行中：<code>ps aux | grep cmdb-api</code></li>
+    <li>OpenResty 进程运行中：<code>ps aux | grep nginx</code></li>
+    <li>端口 34185 监听中：<code>ss -tlnp | grep 34185</code></li>
+    <li>端口 80 监听中：<code>ss -tlnp | grep ':80 '</code></li>
+    <li>前端页面可访问：浏览器打开 <code>http://服务器IP</code></li>
+    <li>API 代理正常：浏览器 F12 → Network → 查看 /api/* 请求返回 200</li>
+    <li>登录功能正常：使用 admin 账号登录</li>
+    <li>各页面数据正常：机器信息、网络信息、SSH信息、业务信息</li>
+  </ul>
+
+  <h3>7.2 API 接口测试</h3>
+
+  <pre><code># 1. 获取 Token
+$ curl -s -X POST http://localhost:80/api/login \
+  -H "Content-Type: application/json" \
+  -d '{"username":"admin","password":"cbh7cyf.vcn!tuy_MUD"}' | python3 -m json.tool
+
+# 记录返回的 token，用于后续请求
+
+# 2. 查询机器列表
+$ TOKEN="&lt;上面返回的token&gt;"
+$ curl -s http://localhost:80/api/machines?page=1\&amp;size=5 \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+
+# 3. 按机房查询（B11机房）
+$ curl -s "http://localhost:80/api/machines/search?idc_code=B11" \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+
+# 4. 获取网络统计
+$ curl -s http://localhost:80/api/network-info/stats \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool
+
+# 5. 获取 SSH 信息
+$ curl -s http://localhost:80/api/idc_info \
+  -H "Authorization: Bearer $TOKEN" | python3 -m json.tool</code></pre>
+
+  <h3>7.3 常见启动问题</h3>
+
+  <table>
+    <tr><th>现象</th><th>原因</th><th>解决</th></tr>
+    <tr><td><code>go build</code> 报错 "module requires go 1.26"</td><td>go.mod 版本号不对</td><td>检查 go.mod 第一行是否为 <code>go 1.26.3</code></td></tr>
+    <tr><td>API 启动报 "dial tcp ... connection refused"</td><td>数据库不可达</td><td>确认 3418.s.kuaicdn.cn:34189 可达</td></tr>
+    <tr><td>前端页面空白</td><td>dist 未部署或路径错误</td><td>确认 /app/dist/index.html 存在</td></tr>
+    <tr><td>API 返回 502 Bad Gateway</td><td>Go API 未启动</td><td>确认 cmdb-api 进程在运行</td></tr>
+    <tr><td>页面一直转圈</td><td>API 端口不通</td><td>检查端口 34185 是否在监听</td></tr>
+    <tr><td>OpenResty 启动报 "port 80 already in use"</td><td>80 端口被其他程序占用</td><td><code>ss -tlnp | grep :80</code> 查看占用进程</td></tr>
+    <tr><td>pnpm 报 "command not found"</td><td>pnpm 未安装</td><td><code>sudo npm install -g pnpm</code></td></tr>
+  </table>
+</section>
+
+<!-- ====== Chapter 8: 补充说明 ====== -->
+<section id="s8">
+  <h2>8. 补充说明</h2>
+
+  <h3>8.1 更新部署流程</h3>
+
+  <p>代码更新后重新部署的完整流程：</p>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>拉取最新代码</h4>
+      <pre><code>$ cd ~/workspace/cmdb
+$ git pull origin main</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>重新构建前端（如有变更）</h4>
+      <pre><code>$ cd frontend && pnpm install && pnpm build
+$ sudo cp -r dist/* /app/dist/</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>重新构建后端（如有变更）</h4>
+      <pre><code>$ cd ~/workspace/cmdb
+$ go build -o cmdb-api .
+$ pkill -f cmdb-api
+$ sleep 1
+$ nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 &amp;</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>重载 OpenResty（如 nginx.conf 变更）</h4>
+      <pre><code>$ sudo cp openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+$ sudo /usr/local/openresty/bin/openresty -t
+$ sudo /usr/local/openresty/bin/openresty -s reload</code></pre>
+    </div>
+  </div>
+
+  <h3>8.2 开机自启配置（systemd）</h3>
+
+  <p>创建 <code>/etc/systemd/system/cmdb-api.service</code>：</p>
+  <pre><code>[Unit]
+Description=CMDB API Service
+After=network.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/workspace/cmdb
+Environment="DB_HOST=3418.s.kuaicdn.cn"
+Environment="DB_PORT=34189"
+Environment="DB_USER=kuaicdn"
+Environment="DB_PASSWORD=abcd001002"
+Environment="DB_NAME=machine_info"
+Environment="DB_SSLMODE=disable"
+Environment="JWT_SECRET=9f8e7d6c5b4a3928170605f4e3d2c1b0a9f8e7d6c5b4a3928170605f4e3d2c1b0"
+Environment="JWT_EXPIRE=72"
+ExecStart=/root/workspace/cmdb/cmdb-api
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target</code></pre>
+
+  <p>启用服务：</p>
+  <pre><code>$ sudo systemctl daemon-reload
+$ sudo systemctl enable cmdb-api
+$ sudo systemctl start cmdb-api
+$ sudo systemctl status cmdb-api</code></pre>
+
+  <div class="callout info">
+    <strong>OpenResty 自启：</strong>如果通过包管理器安装的 OpenResty，通常已经配置了 systemd 自启。检查：<code>sudo systemctl status openresty</code>。
+  </div>
+
+  <h3>8.3 日志管理</h3>
+
+  <table>
+    <tr><th>日志</th><th>路径</th><th>说明</th></tr>
+    <tr><td>API 输出</td><td><code>/var/log/cmdb-api.log</code></td><td>Go 程序的 stdout/stderr</td></tr>
+    <tr><td>OpenResty 访问</td><td><code>/usr/local/openresty/nginx/logs/access.log</code></td><td>HTTP 请求记录</td></tr>
+    <tr><td>OpenResty 错误</td><td><code>/usr/local/openresty/nginx/logs/error.log</code></td><td>错误和警告</td></tr>
+  </table>
+
+  <h3>8.4 防火墙配置</h3>
+
+  <p>如果服务器有防火墙，确保放行 80 端口：</p>
+  <pre><code># iptables
+$ sudo iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+
+# firewalld
+$ sudo firewall-cmd --add-port=80/tcp --permanent
+$ sudo firewall-cmd --reload
+
+# ufw
+$ sudo ufw allow 80/tcp</code></pre>
+
+  <p>注意：34185 端口（API）不需要对外开放，只通过 127.0.0.1 由 OpenResty 代理访问。</p>
+
+  <h3>8.5 可选：安装本地 Redis</h3>
+
+  <p>如果需要缓存功能，安装本地 Redis：</p>
+  <pre><code>$ sudo apt-get install -y redis-server
+$ sudo systemctl enable redis-server
+$ sudo systemctl start redis-server
+$ redis-cli ping   # 返回 PONG</code></pre>
+
+  <p>不安装 Redis 也不影响核心功能——程序在 Redis 不可用时会自动降级，每次请求直接查数据库。</p>
+</section>
+
+<!-- ====== 附录 ====== -->
+<section id="appendix">
+  <h2>附录：速查表</h2>
+
+  <h3>A. 端口一览</h3>
+
+  <table>
+    <tr><th>端口</th><th>服务</th><th>绑定地址</th><th>是否对外</th></tr>
+    <tr><td>80</td><td>OpenResty（前端 + API 代理）</td><td>0.0.0.0</td><td>是（公网访问）</td></tr>
+    <tr><td>34185</td><td>Go Gin API</td><td>0.0.0.0</td><td>否（仅 127.0.0.1 通过 OpenResty）</td></tr>
+    <tr><td>34189</td><td>PostgreSQL（远程）</td><td>3418.s.kuaicdn.cn</td><td>否（内网直连）</td></tr>
+  </table>
+
+  <h3>B. 目录路径速查</h3>
+
+  <table>
+    <tr><th>路径</th><th>用途</th></tr>
+    <tr><td><code>~/workspace/cmdb/</code></td><td>项目根目录</td></tr>
+    <tr><td><code>~/workspace/cmdb/frontend/dist/</code></td><td>前端构建产物</td></tr>
+    <tr><td><code>/app/dist/</code></td><td>OpenResty 服务的前端根目录</td></tr>
+    <tr><td><code>/usr/local/openresty/nginx/conf/nginx.conf</code></td><td>OpenResty 配置文件</td></tr>
+    <tr><td><code>/var/log/cmdb-api.log</code></td><td>API 运行日志</td></tr>
+  </table>
+
+  <h3>C. 账号信息</h3>
+
+  <table>
+    <tr><th>用户名</th><th>角色</th><th>说明</th></tr>
+    <tr><td><code>admin</code></td><td>管理员</td><td>可执行全部操作，包括删除机房</td></tr>
+    <tr><td><code>bdkj</code></td><td>普通用户</td><td>可查询和编辑，不可执行危险操作</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>首次部署务必更换密码。</strong>密码在 <code>database/postgres.go</code> 的 <code>seedUsers()</code> 函数中设置（bcrypt 加密）。修改密码后重新编译部署即可。
+  </div>
+
+  <h3>D. 快速启动命令总结（全新服务器，从零开始）</h3>
+
+  <pre><code># ==========================================
+# 第0步：环境安装（仅首次需要，约5分钟）
+# ==========================================
+
+# 安装 Node.js 20
+$ curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+$ sudo apt-get install -y nodejs
+
+# 安装 pnpm
+$ sudo corepack enable
+$ corepack prepare pnpm@9.15.0 --activate
+
+# 验证
+$ node --version    # v20.x.x
+$ pnpm --version    # 9.15.0
+$ go version        # go1.26.3
+
+# ==========================================
+# 第1步：获取代码
+# ==========================================
+$ cd ~/workspace
+$ git clone &lt;your-repo-url&gt; cmdb
+$ cd cmdb
+
+# 确认 go.mod 版本
+$ head -3 go.mod
+# go 1.26.3  ← 确认
+
+# ==========================================
+# 第2步：构建后端
+# ==========================================
+$ go env -w GOPROXY=https://goproxy.cn,direct
+$ go mod tidy
+$ go build -o cmdb-api .
+
+# ==========================================
+# 第3步：构建前端
+# ==========================================
+$ cd frontend
+$ pnpm install      # 安装 vue/vite/vue-router 等依赖
+$ pnpm build        # vite build → dist/
+$ sudo mkdir -p /app/dist
+$ sudo cp -r dist/* /app/dist/
+$ cd ..
+
+# ==========================================
+# 第4步：配置并启动 OpenResty
+# ==========================================
+$ sudo cp openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+$ sudo /usr/local/openresty/bin/openresty -t
+$ sudo /usr/local/openresty/bin/openresty -s reload || sudo /usr/local/openresty/bin/openresty
+
+# ==========================================
+# 第5步：启动 Go API
+# ==========================================
+$ export DB_HOST=3418.s.kuaicdn.cn DB_PORT=34189 DB_USER=kuaicdn DB_PASSWORD=abcd001002
+$ export DB_NAME=machine_info DB_SSLMODE=disable
+$ export JWT_SECRET=9f8e7d6c5b4a3928170605f4e3d2c1b0a9f8e7d6c5b4a3928170605f4e3d2c1b0 JWT_EXPIRE=72
+$ nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 &amp;
+
+# ==========================================
+# 第6步：验证
+# ==========================================
+$ curl http://localhost:80/                          # 应返回 index.html
+$ curl -s -X POST http://localhost:80/api/login \    # 应返回 token
+    -H "Content-Type: application/json" \
+    -d '{"username":"admin","password":"cbh7cyf.vcn!tuy_MUD"}'
+
+# 浏览器打开 http://服务器IP
+# 使用 admin 账号登录，确认四个页面数据正常</code></pre>
+</section>
+
+<footer>
+  <p>CMDB 新服务器部署操作手册 — 更新于 2026-05-19 — Go 1.26.3 + Vue3(pnpm) + OpenResty(80端口) + 删除管理 + Excel导出</p>
+</footer>
+
+</div>
+
+<button class="back-top" id="backTop" title="回到顶部">↑</button>
+
+<script>
+  const btn = document.getElementById('backTop');
+  window.addEventListener('scroll', () => {
+    btn.classList.toggle('visible', window.scrollY > 600);
+  });
+  btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+
+</body>
+</html>

@@ -1,0 +1,1220 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMDB 资产管理系统全栈项目教程</title>
+<style>
+  :root {
+    --bg: #fafaf8;
+    --text: #1a1a1a;
+    --muted: #6b6b6b;
+    --accent: #d4724a;
+    --code-bg: #f4f3f0;
+    --border: #e6e4dd;
+    --card-bg: #fff;
+    --tag-bg: #fef3ed;
+    --tag-text: #c0532a;
+    --link: #c0532a;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.8;
+    font-size: 16px;
+  }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 28px 100px; }
+
+  .hero {
+    padding: 80px 0 60px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 60px;
+  }
+  .hero h1 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 2.8rem;
+    font-weight: 700;
+    line-height: 1.25;
+    letter-spacing: -0.02em;
+    margin-bottom: 16px;
+  }
+  .hero .sub {
+    font-size: 1.15rem;
+    color: var(--muted);
+    max-width: 600px;
+  }
+  .hero .meta {
+    margin-top: 28px;
+    display: flex;
+    gap: 18px;
+    flex-wrap: wrap;
+    font-size: .88rem;
+    color: var(--muted);
+  }
+  .hero .meta span {
+    background: var(--tag-bg);
+    color: var(--tag-text);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+
+  .toc {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 32px 36px;
+    margin-bottom: 60px;
+  }
+  .toc h2 { font-size: 1.15rem; margin-bottom: 16px; }
+  .toc ol { padding-left: 22px; }
+  .toc li { margin: 8px 0; }
+  .toc a { color: var(--link); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+
+  section { margin-bottom: 72px; }
+  h2 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    line-height: 1.35;
+    padding-bottom: 10px;
+    border-bottom: 2px solid var(--border);
+  }
+  h3 {
+    font-family: "Noto Serif SC", "Songti SC", Georgia, serif;
+    font-size: 1.3rem;
+    font-weight: 700;
+    margin: 36px 0 12px;
+  }
+  h4 {
+    font-weight: 600;
+    font-size: 1.05rem;
+    margin: 28px 0 8px;
+  }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 24px; margin: 14px 0; }
+  li { margin: 6px 0; }
+
+  code {
+    font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: .88em;
+    background: var(--code-bg);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  pre {
+    font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace;
+    font-size: .85rem;
+    background: #1e1e1e;
+    color: #d4d4d4;
+    padding: 18px 22px;
+    border-radius: 8px;
+    overflow-x: auto;
+    line-height: 1.6;
+    margin: 18px 0;
+  }
+  pre code {
+    background: none;
+    padding: 0;
+    color: inherit;
+    font-size: inherit;
+  }
+
+  .callout {
+    border-left: 3px solid var(--accent);
+    padding: 16px 20px;
+    margin: 24px 0;
+    background: var(--tag-bg);
+    border-radius: 0 8px 8px 0;
+  }
+  .callout.warn {
+    border-color: #e0a800;
+    background: #fffbed;
+  }
+  .callout.info {
+    border-color: #3b82f6;
+    background: #eff6ff;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 20px 0;
+    font-size: .92em;
+  }
+  th, td {
+    text-align: left;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  th {
+    font-weight: 600;
+    background: var(--code-bg);
+    font-size: .85em;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+  }
+  tr:hover td { background: #fdfdfb; }
+
+  .card-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 18px;
+    margin: 22px 0;
+  }
+  .card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px;
+  }
+  .card h4 { margin: 0 0 8px; font-size: 1rem; }
+  .card p { margin: 0; font-size: .9rem; color: var(--muted); }
+
+  .diagram {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 28px;
+    margin: 22px 0;
+    font-family: "IBM Plex Mono", "SF Mono", monospace;
+    font-size: .84rem;
+    line-height: 1.7;
+    white-space: pre;
+    overflow-x: auto;
+  }
+
+  .step {
+    display: flex;
+    gap: 18px;
+    margin: 24px 0;
+  }
+  .step-num {
+    flex-shrink: 0;
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 1.1rem;
+  }
+  .step-body h4 { margin: 0 0 4px; }
+
+  footer {
+    margin-top: 100px;
+    padding-top: 28px;
+    border-top: 1px solid var(--border);
+    font-size: .85rem;
+    color: var(--muted);
+  }
+
+  @media (max-width: 680px) {
+    .hero h1 { font-size: 2rem; }
+    .container { padding: 24px 16px 60px; }
+    pre { font-size: .78rem; padding: 14px 16px; }
+    .card-grid { grid-template-columns: 1fr; }
+    .hero { padding: 40px 0 36px; }
+  }
+
+  .back-top {
+    position: fixed;
+    bottom: 28px;
+    right: 28px;
+    width: 42px;
+    height: 42px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 2px 12px rgba(0,0,0,.15);
+    transition: opacity .25s;
+    z-index: 100;
+  }
+  .back-top.visible { display: flex; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+<header class="hero">
+  <h1>CMDB 资产管理系统全栈项目教程</h1>
+  <p class="sub">基于 Go Gin + PostgreSQL + Vue3 + OpenResty 的企业级资产管理系统（CMDB），支持 JWT 认证、Redis 缓存、多表联查、分页搜索</p>
+  <div class="meta">
+    <span>Go 1.26.3</span>
+    <span>Vue 3 + Vite</span>
+    <span>OpenResty</span>
+    <span>Docker</span>
+    <span>PostgreSQL</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#s1">项目概述</a></li>
+    <li><a href="#s2">技术栈总览</a></li>
+    <li><a href="#s3">系统架构</a></li>
+    <li><a href="#s4">后端详解</a></li>
+    <li><a href="#s5">前端详解</a></li>
+    <li><a href="#s6">OpenResty 与 Docker 部署</a></li>
+    <li><a href="#s7">关键注意事项</a></li>
+    <li><a href="#s8">日常运维</a></li>
+    <li><a href="#appendix">附录：速查表</a></li>
+  </ol>
+</nav>
+
+<!-- ====== Chapter 1 ====== -->
+<section id="s1">
+  <h2>1. 项目概述</h2>
+
+  <p>本项目是一个面向企业机房资产管理的全栈 Web 应用（CMDB）。它管理机房机器的以下四类信息：</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>机器硬件信息</h4>
+      <p>系统类型、厂商、序列号、磁盘配置（SSD/HDD）、CPU 型号、内存数量、服务器高度等</p>
+    </div>
+    <div class="card">
+      <h4>网络信息</h4>
+      <p>IPv4/IPv6 地址、MAC 地址、网卡名称、VLAN、网关、网络类型（static/pppoe）、IP 状态</p>
+    </div>
+    <div class="card">
+      <h4>IDC/SSH 信息</h4>
+      <p>ZbxID、IPMI IP（核心关联键）、机房编码与名称、SSH 远程管理 IP</p>
+    </div>
+    <div class="card">
+      <h4>业务信息</h4>
+      <p>业务名称与 ID、新旧业务带宽、业务变更记录</p>
+    </div>
+  </div>
+
+  <h3>核心功能</h3>
+  <ul>
+    <li><strong>JWT 认证</strong> — 基于 Bearer Token 的用户登录与角色鉴权（admin/user）</li>
+    <li><strong>多字段搜索</strong> — 支持机房编码、名称、IPMI IP、业务 ID 等字段的 ILIKE 模糊匹配</li>
+    <li><strong>Redis 缓存</strong> — 机器详情 30 分钟缓存，列表 5 分钟缓存，缓存未命中自动降级查库</li>
+    <li><strong>多表联查</strong> — 以 <code>ipmi_ip</code> 为核心外键，LEFT JOIN 四张表 + JSON 聚合查询</li>
+    <li><strong>安全删除</strong> — 删除机器/网络信息前自动归档到 deleted_records 表，JSONB 保存完整原始数据，保留 30 天可恢复</li>
+    <li><strong>Excel 导出</strong> — 所有页面支持按当前筛选条件导出 .xlsx 文件，使用 excelize 库服务端生成</li>
+    <li><strong>Docker / 原生部署</strong> — 支持 Docker Compose 和原生 OpenResty 两种部署模式</li>
+  </ul>
+
+  <div class="callout">
+    <strong>数据规模：</strong>生产数据库约 1776 条机房记录、1745 条机器记录、3502 条网络记录、1768 条业务记录，覆盖 36 个机房。
+  </div>
+</section>
+
+<!-- ====== Chapter 2 ====== -->
+<section id="s2">
+  <h2>2. 技术栈总览</h2>
+
+  <table>
+    <tr><th>层次</th><th>技术</th><th>版本</th><th>说明</th></tr>
+    <tr><td>后端语言</td><td>Go</td><td>1.26.3</td><td>高性能、并发友好</td></tr>
+    <tr><td>Web 框架</td><td>Gin</td><td>1.9+</td><td>高性能 HTTP 路由</td></tr>
+    <tr><td>ORM</td><td>GORM</td><td>1.25+</td><td>AutoMigrate + 复杂查询</td></tr>
+    <tr><td>数据库</td><td>PostgreSQL</td><td>17.6</td><td>端口 34189</td></tr>
+    <tr><td>缓存</td><td>Redis</td><td>7.4.1</td><td>连接失败自动降级，nil-safe包装函数</td></tr>
+    <tr><td>认证</td><td>JWT (HS256)</td><td>golang-jwt v5</td><td>72 小时过期</td></tr>
+    <tr><td>密码加密</td><td>bcrypt</td><td>—</td><td>不可逆哈希</td></tr>
+    <tr><td>前端框架</td><td>Vue 3</td><td>3.5+</td><td>Composition API + script setup</td></tr>
+    <tr><td>前端语言</td><td>TypeScript</td><td>5.7</td><td>类型安全</td></tr>
+    <tr><td>构建工具</td><td>Vite</td><td>6.2+</td><td>极速 HMR + 生产构建</td></tr>
+    <tr><td>路由</td><td>Vue Router</td><td>4.5+</td><td>Hash 模式 + 路由守卫</td></tr>
+    <tr><td>包管理</td><td>pnpm</td><td>9.15+</td><td>快速、节省磁盘</td></tr>
+    <tr><td>网关</td><td>OpenResty</td><td>1.25.3</td><td>Nginx + Lua，端口 34186</td></tr>
+    <tr><td>容器化</td><td>Docker + Compose</td><td>—</td><td>host 网络模式</td></tr>
+  </table>
+
+  <div class="callout info">
+    <strong>为什么用 Hash 路由？</strong>Vue Router 的 Hash 模式（createWebHashHistory）将路径放在 # 后面，如 <code>/#/machine-info</code>。# 后的内容不会发送到服务器，因此 OpenResty 不需要为每个前端路由配置 try_files 规则。
+  </div>
+</section>
+
+<!-- ====== Chapter 3 ====== -->
+<section id="s3">
+  <h2>3. 系统架构</h2>
+
+  <h3>整体架构图</h3>
+
+  <div class="diagram">
+浏览器/客户端
+    |
+    | HTTP :34186
+    v
++------------------+
+|   OpenResty      |  (端口 34186)
+|   Nginx + Lua    |
++-------+----------+
+        |
+        | /api/* 反向代理
+        v
++------------------+       +------------------+
+|   Go Gin API     | ----&gt; | PostgreSQL       |
+|   (端口 34185)   |       | 3418.s.kuaicdn.cn|
++------------------+       | :34189           |
+        |                   +------------------+
+        | (可选)
+        v
++------------------+
+|   Redis          |
+|   (localhost)    |
++------------------+
+
+前端静态文件:
+  OpenResty 直接服务 /app/dist/
+  - /assets/*  缓存 30 天
+  - /*         SPA fallback → index.html</div>
+
+  <h3>请求流转过程</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>浏览器访问 http://服务器:34186</h4>
+      <p>OpenResty 返回 <code>/app/dist/index.html</code>，Vue Router 接管路由。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>前端发起 API 请求 GET /api/machines</h4>
+      <p>请求发送到同域（端口 34186），OpenResty 匹配 <code>location /api/</code> 规则，反向代理到 <code>127.0.0.1:34185</code>。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>JWT 中间件验证身份</h4>
+      <p>AuthRequired 中间件提取 Authorization header 中的 Bearer Token，验证 JWT 签名与过期时间。</p>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>Handler 处理请求</h4>
+      <p>先查 Redis 缓存（如 ListMachines/GetMachine），命中直接返回。未命中则查 PostgreSQL，结果写入 Redis。</p>
+    </div>
+  </div>
+
+  <h3>端口规划</h3>
+
+  <table>
+    <tr><th>端口</th><th>服务</th><th>说明</th></tr>
+    <tr><td>34185</td><td>Go Gin API</td><td>后端 RESTful API</td></tr>
+    <tr><td>34186</td><td>OpenResty</td><td>Web 前端 + API 反向代理</td></tr>
+    <tr><td>34189</td><td>PostgreSQL</td><td>远程数据库（3418.s.kuaicdn.cn）</td></tr>
+    <tr><td>6379</td><td>Redis</td><td>本地缓存（可选）</td></tr>
+  </table>
+</section>
+
+<!-- ====== Chapter 4 ====== -->
+<section id="s4">
+  <h2>4. 后端详解</h2>
+
+  <h3>4.1 入口文件 main.go</h3>
+
+  <p><code>main.go</code> 是程序的启动入口，负责按顺序执行以下步骤：</p>
+
+  <pre><code>func main() {
+    config.LoadConfig()       // 1. 加载 .env 配置
+    database.ConnectDB()      // 2. 连接 PostgreSQL + AutoMigrate + seedUsers
+    database.ConnectRedis()   // 3. 连接 Redis（失败不退出）
+    r := gin.Default()        // 4. 创建 Gin 引擎
+
+    // 5. 注册公开路由
+    r.POST("/api/login", handlers.Login)
+
+    // 6. 注册认证路由组（JWT 中间件）
+    auth := r.Group("/api")
+    auth.Use(middleware.AuthRequired())
+    { /* ... 40+ 路由 ... */ }
+
+    // 7. 启动 HTTP 服务 + 优雅退出
+    srv.ListenAndServe()
+    // Ctrl+C → 5 秒超时关闭
+}</code></pre>
+
+  <div class="callout info">
+    <strong>优雅退出：</strong>程序监听 SIGTERM/SIGINT 信号，收到信号后 5 秒内完成正在处理的请求，然后安全关闭。避免数据丢失或连接泄露。
+  </div>
+
+  <h3>4.2 配置管理 config/config.go</h3>
+
+  <p>使用 <code>godotenv</code> 库加载 <code>.env</code> 文件，同时支持环境变量覆盖（容器部署时 docker-compose 传入）。</p>
+
+  <pre><code>type Config struct {
+    DBHost     string  // 数据库地址（远程: 3418.s.kuaicdn.cn）
+    DBPort     string  // 数据库端口（34189）
+    JWTSecret  string  // JWT 签名密钥
+    JWTExpire  string  // Token 过期时间（小时）
+    // ...
+}
+
+func LoadConfig() {
+    godotenv.Load()  // 尝试加载 .env，文件不存在不报错
+    AppConfig = Config{
+        DBHost: getEnv("DB_HOST", "3418.s.kuaicdn.cn"),
+        // getEnv: 优先环境变量，回退默认值
+    }
+}</code></pre>
+
+  <div class="callout warn">
+    <strong>安全提醒：</strong>JWT_SECRET 在生产环境必须使用强随机字符串（至少 32 字节），且通过环境变量注入，不要硬编码或提交到 Git。
+  </div>
+
+  <h3>4.3 数据库连接 database/postgres.go</h3>
+
+  <table>
+    <tr><th>功能</th><th>实现</th></tr>
+    <tr><td>连接</td><td>GORM + PostgreSQL driver，DSN 拼接</td></tr>
+    <tr><td>连接池</td><td>最大空闲 10，最大打开 100，连接最大生命周期 1 小时</td></tr>
+    <tr><td>自动迁移</td><td>AutoMigrate 6 个模型：User, IDCInfo, MachineInfo, BusinessInfo, NetworkInfo, VersionInfo</td></tr>
+    <tr><td>用户初始化</td><td>seedUsers() 创建 admin/bdkj 两个用户，bcrypt 加密密码，存在则更新密码</td></tr>
+  </table>
+
+  <pre><code>func seedUsers() {
+    users := []models.User{
+        {Username: "admin", PasswordHash: hashPassword("..."), Role: "admin"},
+        {Username: "bdkj",  PasswordHash: hashPassword("..."), Role: "user"},
+    }
+    for _, user := range users {
+        if exists { Update password } else { Create user }
+    }
+}</code></pre>
+
+  <h3>4.4 数据模型 models/</h3>
+
+  <p>6 个模型，以 <code>ipmi_ip</code> 作为核心关联键：</p>
+
+  <div class="diagram">
+idc_info (主表)
+├── id, zbx_id, ipmi_ip (UNIQUE), idc_code, idc_name, ssh_ip
+│
+├── machine_info (1:1 关联 via ipmi_ip)
+│   └── system_type, manufacturer, server_sn, ssd/hdd/memory_count, cpu_info
+│
+├── business_info (1:1 关联 via ipmi_ip)
+│   └── business_name/id, old_business_name/id, business_speed
+│
+└── network_info (1:N 关联 via zbx_id / ipmi_ip)
+    └── ipv4_ip, mac_address, eth_name, net_type, vlan, ip_status</div>
+
+  <table>
+    <tr><th>模型</th><th>表名</th><th>核心字段</th><th>特殊设计</th></tr>
+    <tr><td>User</td><td>users</td><td>username, password_hash, role</td><td>bcrypt 密码哈希</td></tr>
+    <tr><td>IDCInfo</td><td>idc_info</td><td>ipmi_ip (UNIQUE), zbx_id, idc_code, ssh_ip</td><td>主表，ipmi_ip 是核心外键</td></tr>
+    <tr><td>MachineInfo</td><td>machine_info</td><td>system_type, manufacturer, server_sn, cpu_info</td><td>硬件信息完整记录</td></tr>
+    <tr><td>BusinessInfo</td><td>business_info</td><td>business_name, business_id, business_speed</td><td>保留新旧业务字段</td></tr>
+    <tr><td>NetworkInfo</td><td>network_info</td><td>ipv4_ip, mac_address, eth_name, net_type</td><td>指针类型支持 NULL，IPv4/IPv6 条件唯一索引</td></tr>
+    <tr><td>Response</td><td>—</td><td>code, message, data</td><td>统一 JSON 响应格式</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>NetworkInfo 指针类型：</strong><code>IPv4IP</code>、<code>IPMIIP</code>、<code>ZbxID</code> 等字段使用 <code>*string</code> 而非 <code>string</code>，因为数据库中这些字段允许 NULL。GORM 中 string 的空值是 ""，而指针的零值是 nil，能与 SQL NULL 正确对应。
+  </div>
+
+  <h3>4.5 Handler 层详解</h3>
+
+  <h4>auth.go — 用户登录</h4>
+  <pre><code>func Login(c *gin.Context) {
+    // 1. 绑定请求体 → LoginRequest{Username, Password}
+    // 2. 查数据库 → WHERE username = ?
+    // 3. bcrypt.CompareHashAndPassword 验证密码
+    // 4. utils.GeneratoToken 生成 JWT（72小时有效）
+    // 5. 返回 {token, username, role, expire}
+}</code></pre>
+
+  <h4>machine_list.go — 列表查询（核心查询）</h4>
+  <p>这是项目中最复杂的查询。一次查询 JOIN 四张表，使用子查询 <code>json_agg</code> 聚合网卡数据。</p>
+
+  <pre><code>func ListMachines(c *gin.Context) {
+    // 1. 读缓存 → cache:machine:list:{params}
+    // 2. 主查询：
+    //    SELECT i.*, m.*, b.*,
+    //           COALESCE(n.networks, '[]') as network_info
+    //    FROM idc_info i
+    //    LEFT JOIN machine_info m ON m.ipmi_ip = i.ipmi_ip
+    //    LEFT JOIN business_info b ON b.ipmi_ip = i.ipmi_ip
+    //    LEFT JOIN (
+    //        SELECT zbx_id, json_agg(network_info.*) as networks
+    //        FROM network_info GROUP BY zbx_id
+    //    ) n ON n.zbx_id = i.zbx_id
+    // 3. 支持全局搜索（search 参数）→ 多字段 ILIKE OR
+    // 4. 支持过滤条件（idc_code, business_name, ssd_count...）
+    // 5. Scan 到中间结构体 → 手动映射 MachineListItem
+    // 6. 写入缓存 5 分钟
+}</code></pre>
+
+  <p>中间结构体 <code>ScanResult</code> 是 GORM 多表复杂查询的关键模式——用指针类型区分 LEFT JOIN 中不存在的行（nil 表示未关联到数据）。</p>
+
+  <h4>machine.go — 机器 CRUD + 搜索</h4>
+  <table>
+    <tr><th>函数</th><th>路由</th><th>缓存策略</th></tr>
+    <tr><td>GetMachine</td><td>GET /api/machine/:ipmi_ip</td><td>先查 Redis（30min），miss 查库后写入</td></tr>
+    <tr><td>CreateMachine</td><td>POST /api/machine</td><td>创建后删除对应缓存</td></tr>
+    <tr><td>UpdateMachine</td><td>PUT /api/machine/:ipmi_ip</td><td>部分更新后删除缓存</td></tr>
+    <tr><td>DeleteMachine</td><td>DELETE /api/machine/:ipmi_ip</td><td>事务删除三表，保留 network_info</td></tr>
+    <tr><td>SearchMachinesByIDC</td><td>GET /api/machines/search</td><td>多字段 ILIKE OR，支持 business_id 子查询</td></tr>
+    <tr><td>SearchMachinesByManufacturer</td><td>GET /api/machines/search/manufacturer</td><td>从 machine_info 出发反向联查</td></tr>
+  </table>
+
+  <h4>network_info.go — 网络信息（最完整的 CRUD）</h4>
+  <p>提供了最丰富的 API：17 个路由，覆盖按 ID/IPMI/ZbxID/IPv4/IDC 的增删改查，以及统计和清空操作。</p>
+
+  <h4>idc_info.go — IDC 信息</h4>
+  <ul>
+    <li><strong>GetIDCInfo</strong> — 只返回 ZbxID/IPMIIP/SSHIP 三个字段，用于 SSH 信息页面</li>
+    <li><strong>DeleteIDCByCode</strong> — 管理员操作，事务级联删除整个机房（四张表），返回各表删除计数</li>
+  </ul>
+
+  <h3>4.6 中间件 middleware/auth.go</h3>
+
+  <p>两层中间件链：</p>
+
+  <pre><code>// 第一层：JWT 验证（所有需要登录的路由）
+func AuthRequired() gin.HandlerFunc {
+    // 1. 提取 Authorization: Bearer &lt;token&gt;
+    // 2. utils.ValidateToken 解析验证 JWT
+    // 3. c.Set("username", claims.Username)  // 注入上下文
+    // 4. c.Set("role", claims.Role)
+    // 5. c.Next()  // 继续后续处理
+}
+
+// 第二层：管理员检查（敏感操作路由）
+func AdminRequired() gin.HandlerFunc {
+    // role != "admin" → 403 Forbidden
+    // role == "admin" → c.Next()
+}</code></pre>
+
+  <h3>4.7 JWT 认证 utils/jwt.go</h3>
+
+  <pre><code>// Claims 结构
+type Claims struct {
+    Username string `json:"username"`
+    Role     string `json:"role"`
+    jwt.RegisteredClaims  // 标准字段: ExpiresAt, IssuedAt, Issuer
+}
+
+// 生成 Token: HS256 签名，72 小时有效
+func GeneratoToken(username, role string) (string, error)
+
+// 验证 Token: 解析 + 验证签名 + 检查过期
+func ValidateToken(tokenString string) (*Claims, error)</code></pre>
+
+  <h3>4.8 Redis 缓存策略</h3>
+
+  <table>
+    <tr><th>缓存键</th><th>TTL</th><th>场景</th></tr>
+    <tr><td><code>cache:machine:{ipmi_ip}</code></td><td>30 分钟</td><td>单机详情查询</td></tr>
+    <tr><td><code>cache:machine:list:{params}</code></td><td>5 分钟</td><td>机器列表查询（缓存键含查询参数）</td></tr>
+    <tr><td><code>network_info:{ipmi_ip}</code></td><td>—</td><td>写操作后删除，下次查询重建</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <strong>缓存失效策略：</strong>所有写操作（创建/更新/删除）执行后立即 <code>DEL</code> 对应缓存键。这是经典的 Cache-Aside 模式。注意：删除 IDC 机房时需要同时删除该机房所有机器的缓存。
+  </div>
+
+  <div class="callout info">
+    <strong>Redis 降级：</strong><code>ConnectRedis()</code> 连接失败时不会退出程序，将 <code>RedisClient</code> 设为 nil。所有 Redis 操作通过 nil-safe 包装函数（<code>CacheGet</code>/<code>CacheSet</code>/<code>CacheDel</code>/<code>CacheFlushDB</code>）进行，Redis 不可用时自动降级为直接查库，不会 panic。
+  </div>
+</section>
+
+<!-- ====== Chapter 5 ====== -->
+<section id="s5">
+  <h2>5. 前端详解</h2>
+
+  <h3>5.1 项目结构</h3>
+
+  <div class="diagram">
+frontend/
+├── index.html              # HTML 入口
+├── package.json            # 依赖声明 (pnpm)
+├── pnpm-lock.yaml          # 依赖锁定文件
+├── .npmrc                  # npm 镜像配置
+├── tsconfig.json           # TypeScript 配置
+├── vite.config.ts          # Vite 构建配置
+└── src/
+    ├── main.ts             # Vue 应用入口
+    ├── env.d.ts            # TypeScript 类型声明
+    ├── App.vue             # 根组件（布局 + 导航）
+    ├── styles/
+    │   └── main.css        # 全局样式
+    ├── router/
+    │   └── index.ts        # 路由定义 + 守卫
+    ├── api/
+    │   └── index.ts        # API 请求封装
+    └── views/
+            ├── Deletion.vue       # 删除管理
+
+        ├── Login.vue       # 登录页
+        <tr><td><code>frontend/src/views/Deletion.vue</code></td><td>新增</td><td>删除管理页（弹框确认 + 导出）</td></tr>
+        ├── MachineInfo.vue # 机器信息
+        ├── NetworkInfo.vue # 网络信息
+        ├── IDCInfo.vue     # SSH 信息
+        └── BusinessInfo.vue# 业务信息</div>
+
+  <h3>5.2 Vite 配置 vite.config.ts</h3>
+
+  <pre><code>export default defineConfig({
+  plugins: [vue()],
+  server: {
+    port: 34187,             // 开发服务器端口
+    proxy: {
+      '/api': {
+        target: 'http://localhost:34185',  // 代理到 Go 后端
+        changeOrigin: true,
+      },
+    },
+  },
+  build: {
+    outDir: 'dist',          // 构建输出目录
+    assetsDir: 'assets',     // 静态资源目录
+  },
+})</code></pre>
+
+  <div class="callout info">
+    <strong>开发与生产的区别：</strong>开发时 Vite dev server（34187）通过 proxy 转发 /api 请求到后端 34185。生产时 OpenResty（34186）服务静态文件并反向代理 /api 到后端 34185。前端代码不需要修改。
+  </div>
+
+  <h3>5.3 路由设计 router/index.ts</h3>
+
+  <pre><code>const router = createRouter({
+  history: createWebHashHistory(),  // Hash 模式
+  routes: [
+    { path: '/login',          name: 'Login',         component: Login },
+    { path: '/',               redirect: '/machine-info' },
+    { path: '/machine-info',   name: 'MachineInfo',   component: MachineInfo },
+    { path: '/network-info',   name: 'NetworkInfo',   component: NetworkInfo },
+    { path: '/idc-info',       name: 'IDCInfo',       component: IDCInfo },
+    { path: '/business-info',  name: 'BusinessInfo',  component: BusinessInfo },
+  ],
+})
+
+// 路由守卫
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem('token')
+  if (to.name !== 'Login' && !token) {
+    next({ name: 'Login' })           // 未登录 → 跳转登录页
+  } else if (to.name === 'Login' && token) {
+    next({ path: '/' })               // 已登录 → 重定向首页
+  } else {
+    next()
+  }
+})</code></pre>
+
+  <h3>5.4 API 请求层 api/index.ts</h3>
+
+  <pre><code>async function request&lt;T&gt;(url: string, options: RequestInit = {}): Promise&lt;T&gt; {
+  const token = getToken()
+  const headers: Record&lt;string, string&gt; = {
+    'Content-Type': 'application/json',
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  }
+
+  const res = await fetch(`${BASE}${url}`, { ...options, headers })
+
+  if (res.status === 401) {          // Token 过期
+    localStorage.clear()
+    window.location.href = '/login'
+    throw new Error('Unauthorized')
+  }
+  return res.json()
+}</code></pre>
+
+  <p>关键设计点：</p>
+  <ul>
+    <li><strong>自动注入 Token</strong> — 从 localStorage 读取，添加到 Authorization header</li>
+    <li><strong>401 拦截</strong> — 清除本地存储并跳转登录页，防止用户看到错误数据</li>
+    <li><strong>BASE 为空字符串</strong> — API 请求发送到同域，由 OpenResty 反向代理到后端</li>
+  </ul>
+
+  <h3>5.5 页面组件</h3>
+
+  <h4>App.vue — 根布局</h4>
+  <p>根据当前路由判断显示登录布局还是主布局。主布局包含：</p>
+  <ul>
+    <li><strong>左侧边栏</strong> — 220px 固定宽度，深色渐变背景，4 个导航项</li>
+    <li><strong>右侧内容区</strong> — margin-left: 220px，router-view 渲染页面组件</li>
+    <li><strong>底部信息</strong> — 显示当前用户名 + 退出按钮</li>
+  </ul>
+
+  <h4>Login.vue — 登录页</h4>
+  <p>居中卡片表单，调用 <code>POST /api/login</code>，成功后存储 token/username/role 到 localStorage，跳转首页。</p>
+
+  <h4>MachineInfo.vue — 机器信息页</h4>
+  <ul>
+    <li>三个搜索框：机房编码（如 B11）、机房名称、全局搜索</li>
+    <li>有过滤条件时调用 <code>searchMachines()</code>，无过滤条件时调用 <code>listMachines()</code></li>
+    <li>可展开行：点击 ▶ 展开显示业务信息和网络信息详情</li>
+    <li>分页：每页 300 条，页码导航</li>
+  </ul>
+
+  <h4>NetworkInfo.vue — 网络信息页</h4>
+  <ul>
+    <li>顶部统计卡片：总记录数 + 各机房网络信息数（调用 <code>getNetworkInfoStats()</code>）</li>
+    <li>多字段过滤：机房编码、IP 状态（成功/失败/未启用）、网络类型（static/pppoe）、IPMI IP、IPv4、MAC、ZbxID</li>
+    <li>14 列数据表格，备注字段截断显示</li>
+  </ul>
+
+  <h4>IDCInfo.vue — SSH 信息页</h4>
+  <p>简单三列表格（ZbxID / IPMI IP / SSH IP），前端本地过滤，无需分页。</p>
+
+  <h4>BusinessInfo.vue — 业务信息页</h4>
+  <ul>
+    <li>按业务名称 + 机房编码过滤</li>
+    <li>"显示未知业务" 复选框：105 条占位记录默认可见，取消勾选后过滤掉</li>
+    <li>未知业务行半透明显示 + 黄色 "未知" 标签</li>
+    <li>带宽格式化：>= 10000M 转为 G 单位显示</li>
+  </ul>
+
+  <h3>5.6 样式设计要点</h3>
+
+  <table>
+    <tr><th>设计点</th><th>实现</th></tr>
+    <tr><td>左侧边栏</td><td>固定定位 220px，深色渐变背景，导航项 hover 高亮，active 左侧蓝色边框</td></tr>
+    <tr><td>表格</td><td>溢出横向滚动，表头 sticky（可选），悬停整行高亮</td></tr>
+    <tr><td>搜索栏</td><td>flexbox 横向排列，输入框/下拉框统一样式，对焦蓝色边框</td></tr>
+    <tr><td>登录页</td><td>深色全屏背景 + 白色居中卡片，渐变登录按钮</td></tr>
+    <tr><td>响应式</td><td>表格横向滚动（overflow-x: auto），搜索栏自动换行（flex-wrap）</td></tr>
+  </table>
+</section>
+
+<!-- ====== Chapter 6 ====== -->
+<section id="s6">
+  <h2>6. OpenResty 与 Docker 部署</h2>
+
+  <h3>6.1 OpenResty 配置 openresty/nginx.conf</h3>
+
+  <pre><code>worker_processes auto;
+
+events { worker_connections 1024; }
+
+http {
+    include       mime.types;
+    sendfile      on;
+    gzip          on;
+    gzip_types    text/plain text/css application/json
+                  application/javascript text/xml;
+
+    upstream backend_api {
+        server 127.0.0.1:34185;     // Go API 上游
+    }
+
+    server {
+        listen 34186;
+        root /app/dist;
+        index index.html;
+
+        // 静态资源长期缓存（30天）
+        location /assets/ {
+            expires 30d;
+            add_header Cache-Control "public, immutable";
+        }
+
+        // API 反向代理
+        location /api/ {
+            proxy_pass http://backend_api;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_read_timeout 60s;
+            proxy_connect_timeout 5s;
+        }
+
+        // SPA fallback（所有非 API 请求返回 index.html）
+        location / {
+            try_files $uri $uri/ /index.html;
+        }
+    }
+}</code></pre>
+
+  <h3>6.2 Dockerfile（Go API 后端）</h3>
+
+  <pre><code># 第一阶段：编译
+FROM golang:1.23-alpine AS builder
+WORKDIR /app
+COPY go.mod go.sum ./
+RUN go mod download
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o cmdb-api .
+
+# 第二阶段：运行
+FROM alpine:latest
+RUN apk --no-cache add ca-certificates
+COPY --from=builder /app/cmdb-api .
+EXPOSE 34185
+CMD ["./cmdb-api"]</code></pre>
+
+  <div class="callout info">
+    <strong>为什么用两阶段构建？</strong>第一阶段包含 Go SDK（~500MB），第二阶段只保留编译后的二进制文件和 CA 证书（~15MB）。大幅减小最终镜像体积。
+  </div>
+
+  <h3>6.3 Dockerfile.frontend（Vue3 + OpenResty）</h3>
+
+  <pre><code># 第一阶段：构建 Vue3 前端（pnpm）
+FROM node:20-alpine AS builder
+WORKDIR /app
+RUN corepack enable && corepack prepare pnpm@latest --activate
+COPY frontend/package.json frontend/pnpm-lock.yaml* ./
+RUN pnpm install
+COPY frontend/ .
+RUN pnpm build
+
+# 第二阶段：OpenResty 运行
+FROM openresty/openresty:1.25.3.1-0-alpine
+COPY --from=builder /app/dist /app/dist
+COPY openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
+EXPOSE 34186
+CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]</code></pre>
+
+  <div class="callout warn">
+    <strong>corepack 启用 pnpm：</strong><code>corepack enable && corepack prepare pnpm@latest --activate</code> 是 Node.js 官方推荐的 pnpm 安装方式，无需全局 <code>npm install -g pnpm</code>。package.json 中的 <code>"packageManager": "pnpm@9.15.0"</code> 确保版本一致性。
+  </div>
+
+  <h3>6.4 docker-compose.yml</h3>
+
+  <pre><code>services:
+  golang-api:
+    build: { context: ., dockerfile: Dockerfile }
+    image: cmdb-api:latest
+    network_mode: "host"
+    container_name: cmdb_api
+    restart: unless-stopped
+    environment:
+      DB_HOST: 3418.s.kuaicdn.cn    # 远程数据库
+      DB_PORT: "34189"
+      DB_USER: kuaicdn
+      DB_PASSWORD: abcd001002
+      DB_NAME: machine_info
+      JWT_SECRET: 9f8e7d6c...      # 生产环境请更换
+      JWT_EXPIRE: "72"
+
+  openresty:
+    build: { context: ., dockerfile: Dockerfile.frontend }
+    image: cmdb-frontend:latest
+    network_mode: "host"
+    container_name: cmdb_frontend
+    restart: unless-stopped
+    depends_on:
+      - golang-api</code></pre>
+
+  <div class="callout info">
+    <strong>host 网络模式：</strong>所有服务使用 <code>network_mode: "host"</code>，容器直接使用宿主机的网络栈。这意味着容器内部服务通过 <code>127.0.0.1</code> 互相通信，与直接在宿主机上运行程序行为一致。
+  </div>
+
+  <h3>6.5 启动流程</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>确保 Docker 和 Docker Compose 已安装</h4>
+      <pre><code>$ docker --version
+$ docker compose version</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>拉取基础镜像（可选，加速构建）</h4>
+      <pre><code>$ docker pull golang:1.23-alpine
+$ docker pull node:20-alpine
+$ docker pull openresty/openresty:1.25.3.1-0-alpine
+$ docker pull alpine:latest</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>构建并启动所有服务</h4>
+      <pre><code>$ docker compose up -d --build</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>验证服务状态</h4>
+      <pre><code>$ docker compose ps
+$ curl http://localhost:34185/api/ping -H "Authorization: Bearer &lt;token&gt;"
+$ curl http://localhost:34186/                  # 前端页面</code></pre>
+    </div>
+  </div>
+</section>
+
+<!-- ====== Chapter 7 ====== -->
+<section id="s7">
+  <h2>7. 关键注意事项</h2>
+
+  <h3>7.1 数据库相关</h3>
+
+  <ul>
+    <li><strong>GORM AutoMigrate 不修改已有列类型</strong> — 新增列会自动添加，但已有列的类型变更需要手动 SQL 迁移</li>
+    <li><strong>ipmi_ip 是核心关联键</strong> — 所有跨表查询都依赖它。删除 idc_info 时务必使用事务级联删除 machine_info 和 business_info</li>
+    <li><strong>network_info 条件唯一索引</strong> — <code>ipv4_ip</code> 和 <code>ipv6_ip</code> 使用了 <code>WHERE ... IS NOT NULL</code> 条件，允许多条 NULL 记录但非 NULL 值唯一</li>
+    <li><strong>ILIKE 不区分大小写</strong> — 所有模糊搜索使用 PostgreSQL ILIKE 操作符，解决 manufacturer 大小写不一致问题</li>
+    <li><strong>远程数据库连接</strong> — 本部署方案中 PostgreSQL 在远程服务器（3418.s.kuaicdn.cn:34189），无需本地运行数据库容器</li>
+  </ul>
+
+  <h3>7.2 缓存策略</h3>
+
+  <ul>
+    <li><strong>机器详情 30 分钟，列表 5 分钟</strong> — 详情变更频率低，列表需要更快反映变更</li>
+    <li><strong>缓存键包含查询参数</strong> — <code>cache:machine:list:page=1&amp;size=300&amp;idc_code=B11...</code>，不同查询条件不会互相污染</li>
+    <li><strong>写操作后必须清除缓存</strong> — 否则用户看到过期数据。特别是批量操作（如 DeleteIDCByCode）需要清除多台机器的缓存</li>
+    <li><strong>Redis 不可用不阻塞</strong> — 连接失败时程序继续运行但缓存功能不可用，每次请求直接查库。适合 Redis 不是核心依赖的场景</li>
+  </ul>
+
+  <h3>7.3 安全性</h3>
+
+  <ul>
+    <li><strong>JWT 密钥管理</strong> — 生产环境必须通过环境变量注入，密钥长度不少于 32 字节随机字符串</li>
+    <li><strong>bcrypt 不可逆</strong> — 密码哈希后无法还原，登录时通过 <code>CompareHashAndPassword</code> 比较</li>
+    <li><strong>角色鉴权</strong> — admin 用户可以执行危险操作（清空网络信息、删除整个机房），普通 user 只能查询</li>
+    <li><strong>Bearer Token 模式</strong> — Token 存储在浏览器的 localStorage 中，每次请求通过 Authorization header 发送</li>
+    <li><strong>Token 过期 72 小时</strong> — 过期后前端自动跳转登录页（401 拦截）</li>
+  </ul>
+
+  <h3>7.4 部署注意</h3>
+
+  <ul>
+    <li><strong>host 网络模式</strong> — 所有容器共享宿主机网络栈，通过 <code>127.0.0.1</code> 互通。确保宿主机端口 34185、34186 未被占用</li>
+    <li><strong>OpenResty SPA fallback</strong> — <code>try_files $uri $uri/ /index.html</code> 确保刷新页面时不会 404。但 Hash 路由模式下 # 后的内容不发送到服务器，此配置主要用于首次加载</li>
+    <li><strong>静态资源缓存</strong> — <code>/assets/</code> 目录设置 30 天缓存 + immutable，Vite 构建时会给文件名加 hash，内容变更时 URL 会变化，无需担心缓存过期</li>
+    <li><strong>.dockerignore 减少构建上下文</strong> — 排除 .git、node_modules、tutorial、.md 等不需要打包进镜像的文件</li>
+    <li><strong>pnpm 镜像配置</strong> — <code>.npmrc</code> 中设置 <code>registry=https://registry.npmmirror.com</code> 加速国内依赖安装</li>
+  </ul>
+
+  <h3>7.5 前端开发</h3>
+
+  <ul>
+    <li><strong>本地开发</strong> — <code>cd frontend && pnpm install && pnpm dev</code>，端口 34187</li>
+    <li><strong>生产构建</strong> — <code>pnpm build</code>，输出到 <code>dist/</code> 目录</li>
+    <li><strong>Hash 路由优势</strong> — OpenResty 不需要为每个前端路由配置特殊规则，# 后的内容完全由浏览器处理</li>
+    <li><strong>TypeScript 类型检查</strong> — build 脚本使用 <code>vite build</code>（跳过 vue-tsc），可在 CI 中单独运行 <code>vue-tsc --noEmit</code> 做类型检查</li>
+  </ul>
+</section>
+
+<!-- ====== Chapter 8 ====== -->
+<section id="s8">
+  <h2>8. 日常运维</h2>
+
+  <h3>服务管理命令</h3>
+
+  <table>
+    <tr><th>操作</th><th>命令</th></tr>
+    <tr><td>构建并启动</td><td><code>docker compose up -d --build</code></td></tr>
+    <tr><td>停止所有服务</td><td><code>docker compose down</code></td></tr>
+    <tr><td>重启 API</td><td><code>docker restart cmdb_api</code></td></tr>
+    <tr><td>重启前端</td><td><code>docker restart cmdb_frontend</code></td></tr>
+    <tr><td>查看日志</td><td><code>docker logs -f --tail 100 cmdb_api</code></td></tr>
+    <tr><td>查看状态</td><td><code>docker compose ps</code></td></tr>
+    <tr><td>进入 API 容器</td><td><code>docker exec -it cmdb_api sh</code></td></tr>
+  </table>
+
+  <h3>更新部署流程</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>拉取最新代码</h4>
+      <pre><code>$ git pull origin main</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>重新构建并启动</h4>
+      <pre><code>$ docker compose up -d --build</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>清理旧镜像（释放磁盘空间）</h4>
+      <pre><code>$ docker image prune -f</code></pre>
+    </div>
+  </div>
+
+  <h3>常见问题排查</h3>
+
+  <table>
+    <tr><th>问题</th><th>检查方法</th><th>解决方案</th></tr>
+    <tr><td>API 无法连接数据库</td><td><code>docker logs cmdb_api</code></td><td>检查 3418.s.kuaicdn.cn:34189 是否可达，防火墙是否放行</td></tr>
+    <tr><td>前端页面空白</td><td><code>curl localhost:34186</code></td><td>检查 OpenResty 容器是否运行，dist 目录是否正确复制</td></tr>
+    <tr><td>登录后立即跳回登录页</td><td>浏览器 F12 Console</td><td>可能是 API 返回非 200，检查 Network 面板中的请求响应</td></tr>
+    <tr><td>端口冲突</td><td><code>ss -tlnp | grep -E '34185|34186'</code></td><td>检查是否有其他进程占用端口</td></tr>
+    <tr><td>镜像构建缓慢</td><td><code>docker compose build --no-cache</code></td><td>检查 GOPROXY 和 npm registry 配置；考虑预热基础镜像</td></tr>
+  </table>
+</section>
+
+<!-- ====== 附录 ====== -->
+<section id="appendix">
+  <h2>附录：速查表</h2>
+
+  <h3>A. 路由速查</h3>
+
+  <table>
+    <tr><th>方法</th><th>路由</th><th>功能</th><th>权限</th></tr>
+    <tr><td>POST</td><td>/api/login</td><td>用户登录</td><td>公开</td></tr>
+    <tr><td>GET</td><td>/api/ping</td><td>连通性测试</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/machines</td><td>机器列表（多条件过滤）</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/machines/search</td><td>多字段搜索机器</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/machine/:ipmi_ip</td><td>获取单机详情（缓存）</td><td>用户</td></tr>
+    <tr><td>POST</td><td>/api/machine</td><td>创建机器</td><td>用户</td></tr>
+    <tr><td>PUT</td><td>/api/machine/:ipmi_ip</td><td>更新机器</td><td>用户</td></tr>
+    <tr><td>DELETE</td><td>/api/machine/:ipmi_ip</td><td>删除机器（事务）</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/network-info</td><td>网络信息列表</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/network-info/search</td><td>模糊搜索网络</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/network-info/stats</td><td>网络统计</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/idc_info</td><td>获取 SSH 信息</td><td>用户</td></tr>
+    <tr><td>DELETE</td><td>/api/admin/network-info/clear-all</td><td>清空网络信息</td><td>管理员</td></tr>
+    <tr><td>POST</td><td>/api/deletion/machines</td><td>删除机器（三表，归档30天）</td><td>用户</td></tr>
+    <tr><td>POST</td><td>/api/deletion/networks</td><td>删除网络信息（归档30天）</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/deletion/records</td><td>查看删除记录</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/machines/export</td><td>导出机器信息Excel</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/network-info/export</td><td>导出网络信息Excel</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/business-info/export</td><td>导出业务信息Excel</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/idc_info/export</td><td>导出SSH信息Excel</td><td>用户</td></tr>
+    <tr><td>GET</td><td>/api/deletion/records/export</td><td>导出删除记录Excel</td><td>用户</td></tr>
+
+    <tr><td>DELETE</td><td>/api/admin/idc/:idc_code</td><td>删除整个机房</td><td>管理员</td></tr>
+  </table>
+
+  <h3>B. 数据表关系速查</h3>
+
+  <table>
+    <tr><th>表名</th><th>记录数</th><th>主键</th><th>关联方式</th></tr>
+    <tr><td>idc_info</td><td>1776</td><td>ipmi_ip (UNIQUE)</td><td>主表</td></tr>
+    <tr><td>machine_info</td><td>1745</td><td>id</td><td>LEFT JOIN via ipmi_ip</td></tr>
+    <tr><td>business_info</td><td>1768</td><td>id</td><td>LEFT JOIN via ipmi_ip</td></tr>
+    <tr><td>network_info</td><td>3502</td><td>id</td><td>子查询 json_agg via zbx_id</td></tr>
+    <tr><td>users</td><td>2</td><td>id</td><td>独立表</td></tr>
+  </table>
+
+  <h3>C. 文件清单</h3>
+
+  <div class="diagram">
+项目根目录
+├── .env                    # 环境变量（数据库地址、JWT密钥）
+├── .dockerignore           # Docker 构建排除文件
+├── docker-compose.yml      # 容器编排（golang-api + openresty）
+├── Dockerfile              # Go API 两阶段构建
+├── Dockerfile.frontend     # Vue3 + OpenResty 两阶段构建
+├── go.mod / go.sum         # Go 模块依赖
+├── main.go                 # 程序入口
+├── restart_gogin.sh        # 一键重启脚本
+├── config/
+│   └── config.go           # 配置加载
+├── database/
+│   ├── postgres.go         # PG 连接 + 迁移 + 用户初始化
+│   └── redis.go            # Redis 连接（可选）
+├── handlers/
+│   ├── auth.go             # 登录
+│   ├── machine.go          # 机器 CRUD + 搜索 + 缓存
+│   ├── machine_list.go     # 列表查询（复杂多表联查）
+│   ├── deletion.go         # 删除管理（归档+清理）
+│   ├── export.go           # Excel 导出
+
+│   ├── network_info.go     # 网络信息完整 CRUD
+│   └── idc_info.go         # IDC 信息 + 机房删除
+├── middleware/
+│   └── auth.go             # JWT 验证 + 管理员检查
+├── models/
+│   ├── users.go            # 用户模型
+│   ├── idc_info.go         # IDC 模型
+│   ├── machine_info.go     # 机器模型
+│   ├── business_info.go    # 业务模型
+│   ├── deleted_record.go  # 删除归档模型
+
+│   ├── network_info.go     # 网络模型
+│   └── response.go         # 统一响应
+├── utils/
+│   └── jwt.go              # JWT 生成/验证
+├── openresty/
+│   └── nginx.conf          # OpenResty 配置
+└── frontend/
+    ├── package.json         # pnpm 依赖声明
+    ├── vite.config.ts       # Vite 构建配置
+    └── src/
+        ├── App.vue          # 根布局
+        ├── router/index.ts  # 路由
+        ├── api/index.ts     # API 请求层
+        └── views/           # 5 个页面组件</div>
+            ├── Deletion.vue       # 删除管理
+
+
+  <h3>D. 快速启动（新服务器）</h3>
+
+  <div class="step">
+    <div class="step-num">1</div>
+    <div class="step-body">
+      <h4>克隆代码</h4>
+      <pre><code>$ git clone &lt;repo-url&gt; cmdb-project
+$ cd cmdb-project</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">2</div>
+    <div class="step-body">
+      <h4>确认远程数据库可达</h4>
+      <pre><code>$ telnet 3418.s.kuaicdn.cn 34189</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">3</div>
+    <div class="step-body">
+      <h4>一键启动</h4>
+      <pre><code>$ docker compose up -d --build</code></pre>
+    </div>
+  </div>
+
+  <div class="step">
+    <div class="step-num">4</div>
+    <div class="step-body">
+      <h4>验证</h4>
+      <p>浏览器打开 <code>http://服务器IP:34186</code>，使用 admin 账号登录。</p>
+    </div>
+  </div>
+</section>
+
+<footer>
+  <p>CMDB 资产管理系统全栈教程 — 更新于 2026-05-19 — 适用于 Go 1.26.3 + Vue 3 + pnpm + OpenResty 部署</p>
+</footer>
+
+</div>
+
+<button class="back-top" id="backTop" title="回到顶部">↑</button>
+
+<script>
+  const btn = document.getElementById('backTop');
+  window.addEventListener('scroll', () => {
+    btn.classList.toggle('visible', window.scrollY > 600);
+  });
+  btn.addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
+</script>
+
+</body>
+</html>

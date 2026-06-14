@@ -1,0 +1,31 @@
+services:
+  golang-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: cmdb-api:latest
+    network_mode: "host"
+    container_name: cmdb_api
+    restart: unless-stopped
+    environment:
+      DB_HOST: 3418.s.kuaicdn.cn
+      DB_PORT: "34189"
+      DB_USER: kuaicdn
+      DB_PASSWORD: abcd001002
+      DB_NAME: machine_info
+      DB_SSL_MODE: disable
+      REDIS_HOST: 127.0.0.1
+      REDIS_PORT: "6379"
+      JWT_SECRET: 9f8e7d6c5b4a3928170605f4e3d2c1b0a9f8e7d6c5b4a3928170605f4e3d2c1b0
+      JWT_EXPIRE: "72"
+
+  openresty:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    image: cmdb-frontend:latest
+    network_mode: "host"
+    container_name: cmdb_frontend
+    restart: unless-stopped
+    depends_on:
+      - golang-api

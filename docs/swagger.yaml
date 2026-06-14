@@ -1,0 +1,164 @@
+basePath: /api
+definitions:
+  models.IDCInfo:
+    properties:
+      created_at:
+        type: string
+      id:
+        type: integer
+      idc_code:
+        type: string
+      idc_name:
+        type: string
+      ipmi_ip:
+        type: string
+      ssh_ip:
+        type: string
+      zbx_id:
+        type: string
+    type: object
+  models.Response:
+    properties:
+      code:
+        type: integer
+      data:
+        description: 可选字段, 如果为空则不输出
+      message:
+        type: string
+    type: object
+host: localhost:8080
+info:
+  contact:
+    email: devops@dongsoftware.com
+    name: 运维开发组
+  description: 高性能资产管理平台, 支持全局搜索、缓存、JWT认证
+  title: CMDB资产管理系统
+  version: "1.0"
+paths:
+  /machine:
+    post:
+      consumes:
+      - application/json
+      description: 创建新的机器记录
+      parameters:
+      - description: 机器信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.IDCInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 创建机器
+      tags:
+      - machines
+  /machine/{zbx_id}:
+    delete:
+      consumes:
+      - application/json
+      description: 根据zbx_id删除机器记录
+      parameters:
+      - description: 机器唯一标识
+        in: path
+        name: zbx_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Response'
+        "500":
+          description: Internal Server Error
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 删除机器
+      tags:
+      - machines
+    get:
+      consumes:
+      - application/json
+      description: 根据zbx_id获取机器的详细信息，包括IDC、机器、业务、网络信息
+      parameters:
+      - description: 机器唯一标识
+        in: path
+        name: zbx_id
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Response'
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 获取单个机器信息
+      tags:
+      - machines
+    put:
+      consumes:
+      - application/json
+      description: 根据zbx_id更新机器信息
+      parameters:
+      - description: 机器唯一标识
+        in: path
+        name: zbx_id
+        required: true
+        type: string
+      - description: 更新的机器信息
+        in: body
+        name: body
+        required: true
+        schema:
+          $ref: '#/definitions/models.IDCInfo'
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Response'
+        "400":
+          description: Bad Request
+          schema:
+            $ref: '#/definitions/models.Response'
+      security:
+      - ApiKeyAuth: []
+      summary: 更新机器信息
+      tags:
+      - machines
+securityDefinitions:
+  ApiKeyAuth:
+    in: header
+    name: Authorization
+    type: apiKey
+swagger: "2.0"

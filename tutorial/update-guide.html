@@ -1,0 +1,208 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMDB 更新手册 — Redis空指针修复 + 删除页简化 + 网络统计优化</title>
+<style>
+  :root { --bg: #fafaf8; --text: #1a1a1a; --muted: #6b6b6b; --accent: #d4724a; --code-bg: #f4f3f0; --border: #e6e4dd; --card-bg: #fff; --tag-bg: #fef3ed; --tag-text: #c0532a; --link: #c0532a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 28px 100px; }
+  .hero { padding: 60px 0 50px; border-bottom: 1px solid var(--border); margin-bottom: 50px; }
+  .hero h1 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 2.2rem; font-weight: 700; margin-bottom: 12px; }
+  .hero .sub { font-size: 1rem; color: var(--muted); }
+  .hero .meta { margin-top: 24px; display: flex; gap: 12px; flex-wrap: wrap; font-size: .85rem; color: var(--muted); }
+  .hero .meta span { background: var(--tag-bg); color: var(--tag-text); padding: 3px 10px; border-radius: 20px; font-weight: 500; }
+  h2 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 1.6rem; font-weight: 700; margin: 50px 0 12px; padding-bottom: 8px; border-bottom: 2px solid var(--border); }
+  h3 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 1.2rem; font-weight: 700; margin: 32px 0 10px; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 22px; margin: 12px 0; }
+  li { margin: 4px 0; }
+  code { font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace; font-size: .88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  pre { font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace; font-size: .82rem; background: #1e1e1e; color: #d4d4d4; padding: 16px 20px; border-radius: 8px; overflow-x: auto; line-height: 1.6; margin: 16px 0; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .callout { border-left: 3px solid var(--accent); padding: 14px 18px; margin: 20px 0; background: var(--tag-bg); border-radius: 0 8px 8px 0; }
+  .callout.info { border-color: #3b82f6; background: #eff6ff; }
+  .callout.warn { border-color: #e0a800; background: #fffbed; }
+  .callout.success { border-color: #22c55e; background: #f0fdf4; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .9em; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { font-weight: 600; background: var(--code-bg); font-size: .85em; }
+  footer { margin-top: 80px; padding-top: 20px; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+  @media (max-width: 680px) { .hero h1 { font-size: 1.6rem; } .container { padding: 24px 14px 60px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="hero">
+  <h1>CMDB 更新手册 — 全部变更总结</h1>
+  <p class="sub">2026-05-19 全部变更：Redis 空指针修复（24处） + 删除管理 + Excel 导出 + 网络统计 + 删除页简化</p>
+  <div class="meta">
+    <span>Redis nil-safe</span>
+    <span>删除管理</span>
+    <span>Excel 导出</span>
+    <span>弹框确认</span>
+    <span>网络统计</span>
+  </div>
+</header>
+
+<h2>1. 关键修复：Redis 空指针崩溃（CRITICAL）</h2>
+
+<div class="callout warn"><strong>影响范围：</strong>服务器没有 Redis 时，所有 API 调用触发 panic → 500 空响应 → 前端 JSON 解析失败。删除管理、机器查询、网络操作全部不可用。</div>
+
+<h3>1.1 根因</h3>
+<p><code>database/redis.go</code> 中 <code>ConnectRedis()</code> 连接失败时设置 <code>RedisClient = nil</code>。但所有 handler 直接调用 <code>database.RedisClient.Get()</code> / <code>.Set()</code> / <code>.Del()</code> / <code>.FlushDB()</code>，nil 指针上调用方法 → panic。</p>
+
+<h3>1.2 修复方案</h3>
+<p>在 <code>database/redis.go</code> 新增 4 个 nil-safe 包装函数：</p>
+
+<pre><code>// Redis 不可用时返回空结果（redis.Nil）
+func CacheGet(ctx context.Context, key string) *redis.StringCmd {
+    if RedisClient == nil { return redis.NewStringResult("", redis.Nil) }
+    return RedisClient.Get(ctx, key)
+}
+
+// Redis 不可用时静默跳过
+func CacheSet(ctx context.Context, key string, value interface{}, ttl time.Duration) {
+    if RedisClient == nil { return }
+    RedisClient.Set(ctx, key, value, ttl)
+}
+
+func CacheDel(ctx context.Context, keys ...string) {
+    if RedisClient == nil { return }
+    RedisClient.Del(ctx, keys...)
+}
+
+func CacheFlushDB(ctx context.Context) {
+    if RedisClient == nil { return }
+    RedisClient.FlushDB(ctx)
+}</code></pre>
+
+<h3>1.3 替换范围</h3>
+<table>
+  <tr><th>文件</th><th>替换数</th><th>调用类型</th></tr>
+  <tr><td><code>handlers/machine.go</code></td><td>9 处</td><td>1×Get + 1×Set + 7×Del</td></tr>
+  <tr><td><code>handlers/network_info.go</code></td><td>11 处</td><td>10×Del + 1×FlushDB</td></tr>
+  <tr><td><code>handlers/machine_list.go</code></td><td>2 处</td><td>1×Get + 1×Set</td></tr>
+  <tr><td><code>handlers/deletion.go</code></td><td>2 处</td><td>2×Del</td></tr>
+  <tr><td><code>handlers/idc_info.go</code></td><td>2 处</td><td>2×Del</td></tr>
+  <tr><td><strong>合计</strong></td><td><strong>26 处</strong></td><td>全部替换为 Cache* 安全函数</td></tr>
+</table>
+
+<div class="callout success"><strong>结果：</strong>Redis 不可用时所有 API 正常响应，缓存降级为直接查库，不再 panic。</div>
+
+<h2>2. 新增功能：Excel 导出</h2>
+
+<p>所有 5 个页面添加绿色"导出Excel"按钮，服务端使用 excelize 库生成 .xlsx 文件。</p>
+
+<h3>2.1 导出路由</h3>
+<pre><code>GET /api/machines/export        # 机器信息（支持 search/idc_code/business_name 过滤）
+GET /api/network-info/export     # 网络信息（支持 idc_code/ip_status/net_type 过滤）
+GET /api/business-info/export    # 业务信息（支持 business_name/idc_code 过滤）
+GET /api/idc_info/export         # SSH信息（全量）
+GET /api/deletion/records/export # 删除记录（支持 record_type 过滤）</code></pre>
+
+<h3>2.2 前端实现</h3>
+<p><code>api/index.ts</code> 新增 <code>downloadExport()</code>：用 <code>fetch()</code> 带 Bearer token 请求 → 收到 blob → <code>URL.createObjectURL</code> → 触发下载。因为 <code>&lt;a download&gt;</code> 标签无法设置 Authorization header。</p>
+
+<h2>3. 新增功能：删除管理</h2>
+
+<ul>
+  <li><strong>删除机器信息（三表）</strong> — 按机房编码或 IPMI IP 列表删除 idc_info + machine_info + business_info，归档到 deleted_records 保留 30 天</li>
+  <li><strong>删除网络信息（单表）</strong> — 按机房编码或 IPMI IP 列表删除 network_info，归档保留 30 天</li>
+  <li><strong>弹框确认</strong> — 点击删除按钮弹出模态框，展示将要删除的目标，确认后执行删除，可取消</li>
+  <li><strong>已删除记录查看</strong> — 机器 tab 显示 ZbxID / IPMI IP / 机房编码 / 机房名称 / SSH IP / 操作人 / 删除时间 / 剩余天数；网络 tab 显示完整网络字段</li>
+  <li><strong>自动清理</strong> — 每 12 小时清理一次 expired_records，到期数据自动删除</li>
+</ul>
+
+<div class="callout info"><strong>删除页表格简化：</strong>机器 tab 之前尝试显示硬件列（系统类型、厂商、CPU、内存、系统盘、SSD、HDD、高度、序列号），但 machine_info 表这些字段多为空值。现简化为 8 列：ZbxID / IPMI IP / 机房编码 / 机房名称 / SSH IP / 操作人 / 删除时间 / 剩余天数。</div>
+
+<h2>4. 改进：网络统计卡片</h2>
+
+<p>NetworkInfo.vue 顶部统计卡片现在显示清晰的标签：</p>
+<ul>
+  <li>第 1 张卡片：<strong>网络记录总数</strong> / 全量</li>
+  <li>第 2-9 张卡片：<strong>机房 XXX</strong> / 网络记录数</li>
+  <li>从 6 张扩展为 9 张，展示 top 8 机房 + 全量</li>
+</ul>
+
+<h2>5. 改进：删除确认弹框</h2>
+
+<p>删除按钮不再需要输入"确认删除"文字，改为点击按钮 → 弹出模态框 → 展示删除目标 → 确认/取消。更直观、更安全。</p>
+
+<h2>6. 全部变更文件汇总</h2>
+
+<table>
+  <tr><th>文件</th><th>变更类型</th><th>变更内容</th></tr>
+  <tr><td><code>database/redis.go</code></td><td>重写</td><td>新增 CacheGet/CacheSet/CacheDel/CacheFlushDB nil-safe 封装（4个函数）</td></tr>
+  <tr><td><code>handlers/machine.go</code></td><td>编辑</td><td>RedisClient.* → Cache* (9处)</td></tr>
+  <tr><td><code>handlers/network_info.go</code></td><td>编辑</td><td>RedisClient.* → Cache* (11处)</td></tr>
+  <tr><td><code>handlers/machine_list.go</code></td><td>编辑</td><td>RedisClient.* → Cache* (2处)</td></tr>
+  <tr><td><code>handlers/deletion.go</code></td><td>新增+编辑</td><td>删除管理 Handler（事务归档+删除+查询+定时清理）+ Cache* (2处)</td></tr>
+  <tr><td><code>handlers/idc_info.go</code></td><td>编辑</td><td>RedisClient.* → Cache* (2处)</td></tr>
+  <tr><td><code>handlers/export.go</code></td><td>新增</td><td>5 个 Excel 导出 Handler（excelize v2.9）</td></tr>
+  <tr><td><code>models/deleted_record.go</code></td><td>新增</td><td>删除归档表模型（JSONB 存储原始数据）</td></tr>
+  <tr><td><code>main.go</code></td><td>编辑</td><td>新增删除路由 + 导出路由 + 定时清理 goroutine</td></tr>
+  <tr><td><code>go.mod</code></td><td>编辑</td><td>go 1.26.3 + excelize v2.9</td></tr>
+  <tr><td><code>database/postgres.go</code></td><td>编辑</td><td>AutoMigrate 加入 DeletedRecord</td></tr>
+  <tr><td><code>frontend/src/api/index.ts</code></td><td>编辑</td><td>新增删除 API + 导出 API + downloadExport</td></tr>
+  <tr><td><code>frontend/src/router/index.ts</code></td><td>编辑</td><td>新增 /deletion 路由</td></tr>
+  <tr><td><code>frontend/src/App.vue</code></td><td>编辑</td><td>侧边栏 +删除管理导航项</td></tr>
+  <tr><td><code>frontend/src/views/Deletion.vue</code></td><td>新增</td><td>删除管理页（弹框确认 + 双tab表格 + 导出）</td></tr>
+  <tr><td><code>frontend/src/views/MachineInfo.vue</code></td><td>编辑</td><td>+IPMI/ZbxID搜索 + 导出按钮</td></tr>
+  <tr><td><code>frontend/src/views/NetworkInfo.vue</code></td><td>编辑</td><td>统计卡片标签优化 + 导出按钮</td></tr>
+  <tr><td><code>frontend/src/views/IDCInfo.vue</code></td><td>编辑</td><td>+导出按钮</td></tr>
+  <tr><td><code>frontend/src/views/BusinessInfo.vue</code></td><td>编辑</td><td>+页提示 + 导出按钮</td></tr>
+  <tr><td><code>frontend/src/styles/main.css</code></td><td>编辑</td><td>+.page-hint + .stat-sub + .days-ok/days-warn 样式</td></tr>
+</table>
+
+<h2>7. 部署步骤</h2>
+
+<pre><code># 1. 上传变更文件
+$ scp database/redis.go handlers/*.go models/deleted_record.go main.go go.mod go.sum \
+      root@118.178.175.42:/data/gin-postgre-vue/
+$ scp frontend/src/api/index.ts frontend/src/router/index.ts frontend/src/App.vue \
+      frontend/src/styles/main.css root@118.178.175.42:/data/gin-postgre-vue/frontend/src/
+$ scp frontend/src/views/*.vue root@118.178.175.42:/data/gin-postgre-vue/frontend/src/views/
+
+# 2. 构建后端
+$ ssh root@118.178.175.42
+$ export GOPROXY=https://goproxy.cn,direct
+$ cd /data/gin-postgre-vue
+$ go mod tidy && go build -o cmdb-api .
+
+# 3. 构建前端
+$ export NVM_DIR="/root/.nvm"
+$ [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh" && nvm use 24
+$ cd /data/gin-postgre-vue/frontend
+$ pnpm build && sudo cp -r dist/* /app/dist/
+
+# 4. 重启服务
+$ pkill -f cmdb-api; sleep 1
+$ cd /data/gin-postgre-vue
+$ nohup ./cmdb-api > /var/log/cmdb-api.log 2>&1 & disown
+$ sudo /usr/local/openresty/bin/openresty -s reload</code></pre>
+
+<h2>8. 清空数据 SQL</h2>
+
+<pre><code>-- 清空所有业务数据（表结构保留）
+TRUNCATE TABLE idc_info, machine_info, business_info, network_info, deleted_records CASCADE;
+
+-- 或用 DELETE（支持 WHERE 条件）
+DELETE FROM business_info;
+DELETE FROM machine_info;
+DELETE FROM network_info;
+DELETE FROM idc_info;
+DELETE FROM deleted_records;</code></pre>
+
+<div class="callout warn"><strong>注意：</strong>这些操作不可逆。TRUNCATE 比 DELETE 快得多，但不能回滚（在 PostgreSQL 中 TRUNCATE 是事务安全的，可以 ROLLBACK）。</div>
+
+<footer>
+  <p>CMDB 更新手册 — 2026-05-19</p>
+</footer>
+
+</div>
+</body>
+</html>

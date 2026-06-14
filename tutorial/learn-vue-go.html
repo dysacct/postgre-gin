@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CMDB项目全栈教学 — Vue3 + Go 语法与实战</title>
+<style>
+  :root { --bg: #fafaf8; --text: #1a1a1a; --muted: #6b6b6b; --accent: #d4724a; --code-bg: #f4f3f0; --border: #e6e4dd; --card-bg: #fff; --tag-bg: #fef3ed; --tag-text: #c0532a; --link: #c0532a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: var(--bg); color: var(--text); line-height: 1.8; font-size: 16px; }
+  .container { max-width: 860px; margin: 0 auto; padding: 40px 28px 100px; }
+  .hero { padding: 80px 0 60px; border-bottom: 1px solid var(--border); margin-bottom: 60px; }
+  .hero h1 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 2.6rem; font-weight: 700; line-height: 1.25; margin-bottom: 16px; }
+  .hero .sub { font-size: 1.15rem; color: var(--muted); max-width: 600px; }
+  .hero .meta { margin-top: 28px; display: flex; gap: 18px; flex-wrap: wrap; font-size: .88rem; color: var(--muted); }
+  .hero .meta span { background: var(--tag-bg); color: var(--tag-text); padding: 4px 12px; border-radius: 20px; font-weight: 500; }
+  .toc { background: var(--card-bg); border: 1px solid var(--border); border-radius: 12px; padding: 32px 36px; margin-bottom: 60px; }
+  .toc h2 { font-size: 1.15rem; margin-bottom: 16px; }
+  .toc ol { padding-left: 22px; }
+  .toc li { margin: 8px 0; }
+  .toc a { color: var(--link); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  section { margin-bottom: 72px; }
+  h2 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 1.8rem; font-weight: 700; margin-bottom: 12px; padding-bottom: 10px; border-bottom: 2px solid var(--border); }
+  h3 { font-family: "Noto Serif SC", "Songti SC", Georgia, serif; font-size: 1.25rem; font-weight: 700; margin: 36px 0 12px; }
+  h4 { font-weight: 600; font-size: 1.05rem; margin: 24px 0 8px; }
+  p { margin: 12px 0; }
+  ul, ol { padding-left: 24px; margin: 14px 0; }
+  li { margin: 6px 0; }
+  code { font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace; font-size: .88em; background: var(--code-bg); padding: 2px 6px; border-radius: 4px; }
+  pre { font-family: "IBM Plex Mono", "SF Mono", "Menlo", "Consolas", monospace; font-size: .84rem; background: #1e1e1e; color: #d4d4d4; padding: 16px 20px; border-radius: 8px; overflow-x: auto; line-height: 1.6; margin: 16px 0; }
+  pre code { background: none; padding: 0; color: inherit; font-size: inherit; }
+  .callout { border-left: 3px solid var(--accent); padding: 16px 20px; margin: 24px 0; background: var(--tag-bg); border-radius: 0 8px 8px 0; }
+  .callout.warn { border-color: #e0a800; background: #fffbed; }
+  .callout.info { border-color: #3b82f6; background: #eff6ff; }
+  .exercise { background: #f0f8ff; border: 1px solid #b8d4f0; border-radius: 8px; padding: 20px 24px; margin: 20px 0; }
+  .exercise h4 { color: #1a6fb5; margin: 0 0 8px; font-size: 1rem; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; font-size: .9em; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+  th { font-weight: 600; background: var(--code-bg); font-size: .85em; text-transform: uppercase; letter-spacing: .04em; }
+  tr:hover td { background: #fdfdfb; }
+  .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 16px; margin: 18px 0; }
+  .card { background: var(--card-bg); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card h4 { margin: 0 0 6px; font-size: 1rem; }
+  .card p { margin: 0; font-size: .88rem; color: var(--muted); }
+  footer { margin-top: 100px; padding-top: 28px; border-top: 1px solid var(--border); font-size: .85rem; color: var(--muted); }
+  @media (max-width: 680px) { .hero h1 { font-size: 2rem; } .container { padding: 24px 16px 60px; } pre { font-size: .76rem; padding: 14px 16px; } }
+</style>
+</head>
+<body>
+<div class="container">
+
+<header class="hero">
+  <h1>CMDB 项目全栈教学</h1>
+  <p class="sub">基于实际项目代码，深入讲解 Vue3 + Go + GORM + JWT + OpenResty 的语法、核心概念与实战技巧。每章附练习题。</p>
+  <div class="meta">
+    <span>Vue3 Composition API</span>
+    <span>Go 1.26</span>
+    <span>Gin + GORM</span>
+    <span>JWT + bcrypt</span>
+    <span>13 章 + 26 练习题</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h2>目录</h2>
+  <ol>
+    <li><a href="#ch1">Vue3 基础：模板语法与响应式</a></li>
+    <li><a href="#ch2">Vue3 核心：ref / reactive / computed / watch</a></li>
+    <li><a href="#ch3">Vue3 组件：Props / Events / 插槽 / 生命周期</a></li>
+    <li><a href="#ch4">Vue Router：Hash路由 / 守卫 / 懒加载</a></li>
+    <li><a href="#ch5">TypeScript 实战：类型系统 / 泛型 / 类型守卫</a></li>
+    <li><a href="#ch6">Vite 构建工具：配置 / 代理 / 生产构建</a></li>
+    <li><a href="#ch7">Go 基础：变量 / 控制流 / 函数 / 指针</a></li>
+    <li><a href="#ch8">Go 进阶：Struct / Method / Interface / 嵌入</a></li>
+    <li><a href="#ch9">Go 并发：Goroutine / Channel / Context</a></li>
+    <li><a href="#ch10">Gin 框架：路由 / 中间件 / 请求处理</a></li>
+    <li><a href="#ch11">GORM：模型 / 迁移 / 查询 / 事务</a></li>
+    <li><a href="#ch12">安全认证：JWT / bcrypt / 中间件模式</a></li>
+    <li><a href="#ch13">项目实战：综合案例分析</a></li>
+  </ol>
+</nav>
+
+<!-- ========== Chapter 1 ========== -->
+<section id="ch1">
+  <h2>第1章 Vue3 基础：模板语法与响应式</h2>
+
+  <h3>1.1 单文件组件结构</h3>
+  <p>Vue3 的每个 <code>.vue</code> 文件（SFC，Single File Component）包含三部分：</p>
+  <pre><code>&lt;script setup lang="ts"&gt;   // 逻辑（TypeScript）&lt;/script&gt;
+&lt;template&gt;                  // 模板（HTML）&lt;/template&gt;
+&lt;style scoped&gt;              // 样式（仅作用于当前组件）&lt;/style&gt;</code></pre>
+
+  <div class="callout info"><strong><code>script setup</code></strong> 是 Vue3.2+ 引入的语法糖。在此模式下，所有顶级变量自动暴露给模板，无需手动 <code>return</code>。不需要像 Vue2 那样写 <code>export default { data() {}, methods: {} }</code>。</div>
+
+  <h3>1.2 数据绑定与指令</h3>
+
+  <table>
+    <tr><th>指令</th><th>写法</th><th>作用</th></tr>
+    <tr><td><code>v-bind</code></td><td><code>:src="url"</code></td><td>单向绑定属性</td></tr>
+    <tr><td><code>v-model</code></td><td><code>v-model="name"</code></td><td>双向绑定（表单元素）</td></tr>
+    <tr><td><code>v-if</code></td><td><code>v-if="show"</code></td><td>条件渲染（销毁/重建DOM）</td></tr>
+    <tr><td><code>v-for</code></td><td><code>v-for="item in list" :key="item.id"</code></td><td>列表渲染</td></tr>
+    <tr><td><code>v-show</code></td><td><code>v-show="open"</code></td><td>条件显示（display:none）</td></tr>
+    <tr><td><code>@click</code></td><td><code>@click="handle"</code></td><td>事件绑定（v-on 缩写）</td></tr>
+    <tr><td><code>@keyup.enter</code></td><td><code>@keyup.enter="search"</code></td><td>回车键事件</td></tr>
+  </table>
+
+  <h3>1.3 Mustache 插值与表达式</h3>
+  <pre><code>&lt;template&gt;
+  &lt;!-- 文本插值 --&gt;
+  &lt;span&gt;{{ item.idc_info?.zbx_id }}&lt;/span&gt;
+
+  &lt;!-- 条件渲染（三元表达式） --&gt;
+  &lt;td&gt;{{ item.business_info?.business_name || '-' }}&lt;/td&gt;
+
+  &lt;!-- 可选链操作符 ?. 安全访问深层属性 --&gt;
+  {{ item.machine_info?.manufacturer }}
+&lt;/template&gt;</code></pre>
+
+  <div class="callout warn"><strong>注意：</strong><code>v-if</code> 和 <code>v-for</code> 不要同时用在一个元素上——<code>v-for</code> 优先级更高。过滤列表时用 <code>computed</code> 代替。</div>
+
+  <h3>1.4 样式：scoped 与 :class</h3>
+  <pre><code>&lt;style scoped&gt;
+  /* scoped 自动为选择器添加 data-v-xxx 属性，不会污染全局 */
+  .row-unknown { opacity: 0.55; }
+  .btn-danger:disabled { opacity: 0.5; cursor: not-allowed; }
+&lt;/style&gt;
+
+&lt;!-- 动态类名 --&gt;
+&lt;tr :class="{ 'row-unknown': isUnknown(item) }"&gt;
+&lt;span :class="daysLeft &lt;= 3 ? 'days-warn' : 'days-ok'"&gt;</code></pre>
+
+  <div class="exercise">
+    <h4>练习 1.1：条件渲染</h4>
+    <p>修改 BusinessInfo.vue——如果某台机器的 <code>business_speed</code> 大于 1000M，在带宽值后面显示一个红色的"高速"标签。</p>
+    <p><strong>提示：</strong>使用 <code>v-if</code> 和条件表达式。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 1.2：列表渲染增强</h4>
+    <p>在 NetworkInfo.vue 的统计卡片区域，给每个机房卡片加一个序号（1, 2, 3...），并用不同颜色交替显示（如奇数行浅蓝背景、偶数行白色）。</p>
+    <p><strong>提示：</strong><code>v-for</code> 的第二个参数是索引 <code>(item, index)</code>。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 2 ========== -->
+<section id="ch2">
+  <h2>第2章 Vue3 核心：ref / reactive / computed / watch</h2>
+
+  <h3>2.1 ref — 响应式基础类型</h3>
+  <p><code>ref</code> 包装一个值使其变为响应式。在 <code>&lt;script setup&gt;</code> 中，模板自动解包，不需要 <code>.value</code>：</p>
+  <pre><code>import { ref } from 'vue'
+
+const loading = ref(false)         // boolean
+const searchText = ref('')         // string
+const page = ref(1)                // number
+const list = ref&lt;any[]&gt;([])        // 数组
+
+// 脚本中访问/修改需要 .value
+loading.value = true
+page.value++
+
+// 模板中自动解包，直接使用
+// &lt;button :disabled="loading"&gt;</code></pre>
+
+  <h3>2.2 reactive — 响应式对象</h3>
+  <p><code>reactive</code> 将一个对象变为深度响应式。适合表单数据：</p>
+  <pre><code>import { reactive } from 'vue'
+
+const filters = reactive({
+  idc_code: '',
+  ip_status: '',
+  net_type: '',
+  ipmi_ip: '',
+})
+
+// 脚本中直接读写属性（不需要 .value）
+filters.idc_code = 'B11'
+
+// 重置所有字段
+Object.keys(filters).forEach(k => (filters as any)[k] = '')</code></pre>
+
+  <div class="callout warn"><strong>ref vs reactive 的选择：</strong>基础类型用 <code>ref</code>，对象/数组用 <code>ref</code> 或 <code>reactive</code>。但 <code>reactive</code> 不能直接替换整个对象（会丢失响应式），用 <code>ref</code> 更安全：<code>const filters = ref({...})</code>。</div>
+
+  <h3>2.3 computed — 计算属性</h3>
+  <p>自动缓存，依赖变化时才重新计算：</p>
+  <pre><code>const totalPages = computed(() =&gt; Math.ceil(total.value / size.value) || 1)
+
+const filteredList = computed(() =&gt; {
+  if (showUnknown.value) return list.value
+  return list.value.filter(item =&gt; item.business_info?.business_name !== '未知业务')
+})
+
+// 使用：绑定到模板 {{ totalPages }} / {{ filteredList }}</code></pre>
+
+  <h3>2.4 watch — 监听变化</h3>
+  <p>主动观察某个值的变化并执行副作用：</p>
+  <pre><code>import { watch } from 'vue'
+
+// 监听单个 ref
+watch(searchText, (newVal) =&gt; {
+  console.log('搜索文本变化:', newVal)
+})
+
+// 监听多个值
+watch([idcCode, ipmiIP], () =&gt; {
+  page.value = 1    // 搜索条件变化时重置页码
+  fetchData()
+})</code></pre>
+
+  <h3>2.5 项目实战：删除管理的响应式逻辑</h3>
+  <p>看 Deletion.vue 中如何组合使用：</p>
+  <pre><code>// 状态：显示/隐藏弹框
+const showModal = ref(false)
+
+// 数据：弹框中要显示的信息
+const modalPreview = ref&lt;any[]&gt;([])
+
+// 动作：打开弹框 → 填充数据 → 显示
+function openModal(type: 'machine' | 'network') {
+  modalPreview.value = [ /* 解析用户输入 */ ]
+  showModal.value = true
+}
+
+// 取消 → 只需关闭弹框
+// @click="showModal = false"</code></pre>
+
+  <div class="exercise">
+    <h4>练习 2.1：防抖搜索</h4>
+    <p>给 MachineInfo.vue 的搜索框添加防抖功能：用户停止输入 500ms 后再自动触发查询，而不是每次按键都查。</p>
+    <p><strong>提示：</strong>用 <code>watch</code> 监听 <code>searchInput</code>，在回调中用 <code>setTimeout</code> + <code>clearTimeout</code> 实现。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 2.2：badge 数量</h4>
+    <p>在侧边栏每个导航项后面显示该分类的总记录数（如"机器信息 (1776)"）。用一个 computed 属性根据当前路由返回对应数量。</p>
+    <p><strong>提示：</strong>各页面的 <code>total</code> 需要通过 provide/inject 或 props 传递给 App.vue。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 3 ========== -->
+<section id="ch3">
+  <h2>第3章 Vue3 组件：Props / Events / 插槽 / 生命周期</h2>
+
+  <h3>3.1 组件通信：Props 向下，Events 向上</h3>
+  <pre><code>// 父传子：defineProps
+const props = defineProps&lt;{
+  title: string
+  count?: number          // ? 表示可选
+}&gt;()
+
+// 子传父：defineEmits
+const emit = defineEmits&lt;{
+  (e: 'update', value: string): void
+  (e: 'close'): void
+}&gt;()
+emit('update', newValue)
+
+// 模板使用：&lt;Child title="hello" @update="handleUpdate" /&gt;</code></pre>
+
+  <h3>3.2 组件注册与懒加载</h3>
+  <pre><code>// 全局注册（main.ts）
+import { createApp } from 'vue'
+const app = createApp(App)
+app.use(router)            // 插件注册
+app.mount('#app')
+
+// 路由懒加载（router/index.ts）
+// 只有访问该路由时才加载组件 JS 文件
+component: () => import('../views/Login.vue')</code></pre>
+
+  <p>Vite 会自动为每个懒加载的组件生成独立的 chunk（如 <code>Login-C8aLfmGx.js</code>），首页只加载需要的代码，加快首屏速度。</p>
+
+  <h3>3.3 生命周期钩子</h3>
+  <table>
+    <tr><th>钩子</th><th>时机</th><th>项目使用</th></tr>
+    <tr><td><code>onMounted</code></td><td>组件挂载到 DOM 后</td><td>页面首次加载数据：<code>onMounted(() => fetchData())</code></td></tr>
+    <tr><td><code>onUnmounted</code></td><td>组件卸载前</td><td>清理定时器、取消请求</td></tr>
+    <tr><td><code>onUpdated</code></td><td>组件更新后</td><td>DOM 变更后操作</td></tr>
+  </table>
+
+  <h3>3.4 模板引用：ref 获取 DOM 元素</h3>
+  <pre><code>const inputRef = ref&lt;HTMLInputElement | null&gt;(null)
+onMounted(() => { inputRef.value?.focus() })
+// &lt;input ref="inputRef" /&gt;</code></pre>
+
+  <div class="exercise">
+    <h4>练习 3.1：提取搜索栏组件</h4>
+    <p>将 MachineInfo.vue 和 NetworkInfo.vue 的搜索栏提取为一个通用 <code>SearchBar.vue</code> 组件。通过 props 传入搜索字段配置（字段名、标签、占位符），通过 emit 返回搜索参数。</p>
+    <p><strong>提示：</strong>searchFields 可以是 <code>{ name: string, label: string, placeholder: string, type: 'input'|'select', options?: string[] }[]</code>。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 3.2：键盘快捷键监听</h4>
+    <p>在 App.vue 中用 <code>onMounted</code> 添加全局键盘监听：按 Ctrl+1~4 切换到对应页面。在 <code>onUnmounted</code> 中移除监听。</p>
+    <p><strong>提示：</strong><code>document.addEventListener('keydown', handler)</code>，用 <code>router.push()</code> 导航。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 4 ========== -->
+<section id="ch4">
+  <h2>第4章 Vue Router：Hash路由 / 守卫 / 懒加载</h2>
+
+  <h3>4.1 Hash 模式 vs History 模式</h3>
+  <pre><code>import { createRouter, createWebHashHistory } from 'vue-router'
+
+const router = createRouter({
+  history: createWebHashHistory(),   // URL: /#/machine-info
+  // history: createWebHistory(),    // URL: /machine-info (需要服务器配置)
+  routes,
+})</code></pre>
+
+  <table>
+    <tr><th>特性</th><th>Hash 模式</th><th>History 模式</th></tr>
+    <tr><td>URL 格式</td><td><code>/#/page</code></td><td><code>/page</code></td></tr>
+    <tr><td>服务器配置</td><td>不需要</td><td>需要 try_files fallback</td></tr>
+    <tr><td>SEO</td><td>较差</td><td>较好</td></tr>
+    <tr><td>本项目选择</td><td>✓</td><td></td></tr>
+  </table>
+
+  <h3>4.2 路由守卫</h3>
+  <pre><code>// 全局前置守卫：每次导航前执行
+router.beforeEach((to, _from, next) => {
+  const token = localStorage.getItem('token')
+
+  if (to.name !== 'Login' && !token) {
+    next({ name: 'Login' })     // 未登录 → 强制跳转登录
+  } else if (to.name === 'Login' && token) {
+    next({ path: '/' })         // 已登录 → 访问/login时重定向首页
+  } else {
+    next()                       // 放行
+  }
+})</code></pre>
+
+  <div class="callout info"><strong>执行流程：</strong>用户访问 <code>/#/machine-info</code> → beforeEach 检查 token → token 不存在 → 重定向到 <code>/#/login</code> → 用户登录成功 → <code>router.push('/')</code> → 重定向到 <code>/machine-info</code>。</div>
+
+  <h3>4.3 编程式导航</h3>
+  <pre><code>import { useRouter } from 'vue-router'
+
+const router = useRouter()
+router.push('/machine-info')       // 跳转
+router.push({ path: '/' })         // 跳转到首页
+router.push({ name: 'MachineInfo', query: { idc_code: 'B11' } })  // 带参数</code></pre>
+
+  <div class="exercise">
+    <h4>练习 4.1：角色路由守卫</h4>
+    <p>增强路由守卫：根据用户 <code>role</code>（admin/user），如果非 admin 访问 /deletion 页面，显示一个提示"需要管理员权限"并阻止导航。</p>
+    <p><strong>提示：</strong>在路由 meta 中添加 <code>meta: { requiresAdmin: true }</code>，在 beforeEach 中检查。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 4.2：动态面包屑</h4>
+    <p>在页面顶部添加面包屑导航：首页 > 机器信息 > B11 机房。机器信息页显示当前搜索的机房编码。</p>
+    <p><strong>提示：</strong>用 <code>route.meta.title</code> 获取当前页面标题，用 <code>route.query</code> 获取搜索参数。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 5 ========== -->
+<section id="ch5">
+  <h2>第5章 TypeScript 实战：类型系统 / 泛型 / 类型守卫</h2>
+
+  <h3>5.1 基础类型与接口</h3>
+  <pre><code>// 基础类型
+const name: string = 'admin'
+const count: number = 42
+const active: boolean = true
+const list: any[] = []           // any 关闭类型检查
+const nullable: string | null = null  // 联合类型
+
+// 接口定义（项目中 API 响应类型）
+interface LoginResponse {
+  code: number
+  message: string
+  data?: {                        // ? 可选
+    token: string
+    username: string
+    role: string
+  }
+}
+
+// Record 类型（键值对字典）
+const params: Record&lt;string, string&gt; = { page: '1', size: '300' }</code></pre>
+
+  <h3>5.2 泛型函数</h3>
+  <pre><code>// 项目中的 API 请求函数（api/index.ts）
+async function request&lt;T = any&gt;(
+  url: string,
+  options: RequestInit = {}
+): Promise&lt;T&gt; {
+  // ...
+  return res.json()   // 返回值类型由调用方决定
+}
+
+// 使用泛型指定返回类型
+const data = await request&lt;LoginResponse&gt;('/api/login', {
+  method: 'POST',
+  body: JSON.stringify({ username, password }),
+})
+// data.code, data.message, data.data?.token 都有类型提示</code></pre>
+
+  <h3>5.3 可选链与空值合并</h3>
+  <pre><code>// 可选链 ?.  — 安全访问可能为 null/undefined 的属性
+const name = item.business_info?.business_name   // undefined 而非报错
+
+// 空值合并 ||  — 提供回退值
+const display = name || '-'                       // name 为空时显示 '-'
+
+// 类型守卫函数
+function isUnknown(item: any): boolean {
+  return item.business_info?.business_name === '未知业务' ||
+         !item.business_info?.business_name
+}</code></pre>
+
+  <h3>5.4 env.d.ts — 声明文件</h3>
+  <pre><code>/// &lt;reference types="vite/client" /&gt;
+
+declare module '*.vue' {
+  import type { DefineComponent } from 'vue'
+  const component: DefineComponent&lt;{}, {}, any&gt;
+  export default component     // 让 TS 认识 .vue 文件导入
+}</code></pre>
+
+  <div class="exercise">
+    <h4>练习 5.1：为 MachineListItem 定义接口</h4>
+    <p>在 machine_list.go 中定义了返回的数据结构。请在 TypeScript 中定义对应的 <code>MachineListItem</code> 接口（含 idc_info, machine_info, business_info, network_info 字段），并替换代码中的 <code>any[]</code>。</p>
+    <p><strong>提示：</strong>嵌套接口定义：<code>interface IDCInfo { zbx_id: string; ... }</code>。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 5.2：类型安全的 API 封装</h4>
+    <p>给 <code>deleteMachines</code> 和 <code>deleteNetworks</code> 的请求参数加上类型约束（idc_code 和 ipmi_ips 不能同时为空）。用 TypeScript 联合类型实现。</p>
+    <p><strong>提示：</strong><code>type DeleteRequest = { idc_code: string; ipmi_ips?: never } | { idc_code?: never; ipmi_ips: string[] }</code>。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 6 ========== -->
+<section id="ch6">
+  <h2>第6章 Vite 构建工具：配置 / 代理 / 生产构建</h2>
+
+  <h3>6.1 vite.config.ts 详解</h3>
+  <pre><code>import { defineConfig } from 'vite'
+import vue from '@vitejs/plugin-vue'
+
+export default defineConfig({
+  plugins: [vue()],                    // Vue SFC 编译插件
+
+  server: {
+    port: 34187,                       // 开发服务器端口
+    proxy: {
+      '/api': {
+        target: 'http://localhost:34185',  // 后端 API 地址
+        changeOrigin: true,
+      },
+    },
+  },
+
+  build: {
+    outDir: 'dist',                    // 输出目录
+    assetsDir: 'assets',               // 静态资源子目录
+    // Vite 自动做: tree-shaking, code-splitting, 压缩
+  },
+})</code></pre>
+
+  <h3>6.2 依赖解析与包管理</h3>
+  <pre><code>// package.json
+{
+  "dependencies": {          // 运行时依赖（会打包到产物）
+    "vue": "^3.5.13",        // ^ 表示兼容 3.x 的最新版本
+    "vue-router": "^4.5.0"
+  },
+  "devDependencies": {       // 开发依赖（仅构建时使用）
+    "vite": "^6.2.4",        // 构建工具
+    "@vitejs/plugin-vue": "^5.2.3",  // Vue 插件
+    "typescript": "~5.7.2",  // ~ 表示兼容 5.7.x
+    "vue-tsc": "^2.2.8"      // Vue TypeScript 类型检查
+  },
+  "packageManager": "pnpm@9.15.0"    // 锁定包管理器
+}</code></pre>
+
+  <h3>6.3 构建产物分析</h3>
+  <p>执行 <code>pnpm build</code> 后的输出：</p>
+  <pre><code>dist/index.html                   0.41 kB  — HTML 入口
+dist/assets/index-Cv3qmeHy.js    96.53 kB  — 共享运行时 (vue + router)
+dist/assets/MachineInfo-BZvLJN1F.js  6.57 kB  — 机器信息页（懒加载）
+dist/assets/Deletion-C-C8bjaY.js      7.30 kB  — 删除管理页（懒加载）
+dist/assets/index-B5dXxLeq.css        5.14 kB  — 全局样式
+...</code></pre>
+
+  <p>文件名中的 hash（如 <code>Cv3qmeHy</code>）由文件内容计算得出。内容不变 → hash 不变 → 浏览器缓存命中。内容变化 → hash 变化 → 浏览器重新下载。</p>
+
+  <div class="exercise">
+    <h4>练习 6.1：添加环境变量</h4>
+    <p>创建 <code>.env.development</code> 和 <code>.env.production</code> 文件，分别设置不同的 API 基础路径（开发：空字符串，生产：空字符串），在代码中通过 <code>import.meta.env.VITE_API_BASE</code> 访问。</p>
+    <p><strong>提示：</strong>Vite 只暴露以 <code>VITE_</code> 前缀的环境变量到前端代码。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 6.2：配置 pnpm 工作区</h4>
+    <p>如果项目有多个前端子项目（如 admin 端 + user 端），使用 pnpm workspace 共享公共组件。写出 pnpm-workspace.yaml 的结构。</p>
+    <p><strong>提示：</strong>在根目录创建 <code>pnpm-workspace.yaml</code>，定义 packages 数组。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 7 ========== -->
+<section id="ch7">
+  <h2>第7章 Go 基础：变量 / 控制流 / 函数 / 指针</h2>
+
+  <h3>7.1 变量声明与类型</h3>
+  <pre><code>// 短变量声明（函数内，自动推断类型）
+name := "admin"
+count := 42
+
+// 显式类型声明
+var total int64
+var results []gin.H            // 切片（动态数组）
+var conditions []string
+
+// 常量
+const cacheTTL = 30 * time.Minute     // 编译时计算
+
+// 零值：未初始化的变量有其类型的零值
+// int=0, string="", bool=false, pointer=nil</code></pre>
+
+  <h3>7.2 控制流</h3>
+  <pre><code>// if-else
+if page &lt; 1 {
+    page = 1
+} else if page &gt; 100 {
+    page = 100
+}
+
+// for 循环（Go 唯一的循环语句）
+for _, idc := range idcInfos {          // range 遍历切片
+    ipmiIPs = append(ipmiIPs, idc.IPMIIP)
+}
+
+// switch
+switch recordType {
+case "machine":
+    // ...
+case "network":
+    // ...
+default:
+    // ...
+}</code></pre>
+
+  <h3>7.3 函数与多返回值</h3>
+  <pre><code>// 基础函数
+func add(a, b int) int {
+    return a + b
+}
+
+// 多返回值（Go 的特色，常用于返回结果+错误）
+func archiveAndDeleteMachine(c *gin.Context, ipmiIPs []string,
+    idcCode, username string) (int, error) {
+
+    if err := tx.Commit().Error; err != nil {
+        return 0, err          // 失败：返回 0 + 错误
+    }
+    return deletedCount, nil   // 成功：返回计数 + nil
+}
+
+// 调用
+count, err := archiveAndDeleteMachine(c, ips, code, user)
+if err != nil {
+    // 处理错误
+}</code></pre>
+
+  <h3>7.4 指针</h3>
+  <pre><code>// * 表示指针类型：存储另一个变量的内存地址
+func updateField(ptr *int) {
+    *ptr = 100    // 解引用：修改指针指向的值
+}
+
+value := 50
+updateField(&value)   // & 取地址：获取 value 的指针
+// value 现在是 100
+
+// 项目中的使用
+type MachineListItem struct {
+    MachineInfo  *models.MachineInfo   // 指针 → 可选（nil 表示不存在）
+    BusinessInfo *models.BusinessInfo  // 指针 → 可选
+    IDCInfo      models.IDCInfo        // 值 → 必有
+}</code></pre>
+
+  <div class="callout info"><strong>值 vs 指针的选择：</strong>如果字段可能为空（如 LEFT JOIN 未匹配到数据），用指针 <code>*Type</code>（零值是 nil）。如果字段必有值，用值 <code>Type</code>（零值是空结构体）。</div>
+
+  <div class="exercise">
+    <h4>练习 7.1：实现 GenerateToken 函数</h4>
+    <p>不参考现有代码，自己实现一个 JWT 生成函数：接收 username 和 role，使用 HS256 算法签名，72 小时过期，返回 token 字符串。</p>
+    <p><strong>提示：</strong>需要导入 <code>github.com/golang-jwt/jwt/v5</code>，创建 <code>jwt.NewWithClaims</code>。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 7.2：指针与值拷贝</h4>
+    <p>写一段 Go 代码演示：将一个 struct 传给函数并修改其字段，(a) 传值（不改变原变量），(b) 传指针（改变原变量）。解释为什么项目中 <code>MachineListItem</code> 的 <code>MachineInfo</code> 用指针。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 8 ========== -->
+<section id="ch8">
+  <h2>第8章 Go 进阶：Struct / Method / Interface / 嵌入</h2>
+
+  <h3>8.1 Struct 与 Tag</h3>
+  <pre><code>type User struct {
+    ID           uint      `gorm:"primaryKey"`                          // GORM tag
+    Username     string    `gorm:"unique;not null;size:50" json:"username"`  // GORM + JSON tag
+    PasswordHash string    `gorm:"column:password_hash;not null"`
+    Role         string    `gorm:"size:20;default:user"`
+    CreatedAt    time.Time `gorm:"autoCreateTime"`
+}
+
+func (User) TableName() string {    // 方法：指定表名
+    return "users"
+}</code></pre>
+
+  <p>Struct tag 是 Go 的元数据机制。反引号中的字符串由特定库解析：<code>gorm</code> 定义数据库列属性，<code>json</code> 定义序列化字段名。</p>
+
+  <h3>8.2 方法（带接收者的函数）</h3>
+  <pre><code>// 值接收者：不修改原 struct（只读）
+func (u User) IsAdmin() bool {
+    return u.Role == "admin"
+}
+
+// 指针接收者：可以修改原 struct
+func (u *User) SetPassword(hash string) {
+    u.PasswordHash = hash
+}
+
+// 调用
+user := User{Role: "admin"}
+fmt.Println(user.IsAdmin())    // true
+user.SetPassword("new_hash")   // 修改 user 的 PasswordHash</code></pre>
+
+  <h3>8.3 Interface — 隐式实现</h3>
+  <pre><code>// 定义接口
+type Writer interface {
+    Write(p []byte) (n int, err error)
+}
+
+// 任何有 Write 方法的类型自动实现了 Writer
+// 不需要显式声明 "implements"
+type MyWriter struct{}
+func (m MyWriter) Write(p []byte) (int, error) {
+    return len(p), nil
+}
+
+// 多态使用
+var w Writer = MyWriter{}
+w.Write([]byte("hello"))</code></pre>
+
+  <div class="exercise">
+    <h4>练习 8.1：定义 ScanResult 的 ToJSON 方法</h4>
+    <p>给项目中 <code>machine_list.go</code> 的 <code>ScanResult</code> 结构体添加一个 <code>ToMap() map[string]interface{}</code> 方法，将非 nil 字段转为 map（nil 字段跳过）。</p>
+    <p><strong>提示：</strong>用 <code>reflect</code> 包或手动检查每个字段是否为 nil。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 8.2：接口解耦</h4>
+    <p>定义一个 <code>Cache</code> 接口（含 Get/Set/Del 方法），让 <code>database/redis.go</code> 实现它，再写一个 <code>MemoryCache</code> 的实现（用 map 存储）。说明这种设计如何方便测试。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 9 ========== -->
+<section id="ch9">
+  <h2>第9章 Go 并发：Goroutine / Channel / Context</h2>
+
+  <h3>9.1 Goroutine — 轻量级线程</h3>
+  <pre><code>// 启动一个 goroutine：go 关键字
+go func() {
+    for {
+        time.Sleep(12 * time.Hour)
+        handlers.CleanupExpiredRecords()   // 每12小时清理过期记录
+    }
+}()
+
+// HTTP 服务器在独立 goroutine 中运行
+go func() {
+    srv.ListenAndServe()
+}()
+
+// 主 goroutine 等待信号
+stop := make(chan os.Signal, 1)
+signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
+&lt;-stop   // 阻塞直到收到 Ctrl+C</code></pre>
+
+  <div class="callout warn"><strong>关键：</strong>main 函数结束时，所有 goroutine 都会被强制终止。所以主 goroutine 必须等待其他 goroutine 完成（通过 channel 或 WaitGroup）。</div>
+
+  <h3>9.2 Channel — goroutine 间通信</h3>
+  <pre><code>// 无缓冲 channel：发送方阻塞直到有接收方
+done := make(chan bool)
+go func() {
+    doWork()
+    done &lt;- true    // 发送完成信号
+}()
+&lt;-done              // 等待接收
+
+// 带缓冲 channel
+results := make(chan int, 10)   // 缓冲 10 个，发满之前不阻塞
+
+// 信号 channel（main.go）
+stop := make(chan os.Signal, 1)
+signal.Notify(stop, os.Interrupt)  // 操作系统信号会发送到 stop channel</code></pre>
+
+  <h3>9.3 Context — 请求上下文传递</h3>
+  <pre><code>// 每个 HTTP 请求都有 Context
+ctx := c.Request.Context()                       // Gin 请求的 context
+
+// 带超时的 context
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+
+// Context 通过调用链传递
+database.RedisClient.Get(ctx, key)      // Redis 操作使用 ctx
+database.DB.WithContext(ctx).Find(...)  // 数据库操作使用 ctx</code></pre>
+
+  <div class="exercise">
+    <h4>练习 9.1：并发查询优化</h4>
+    <p>在 GetMachine handler 中，查询 idc_info、machine_info、business_info、network_info 是顺序执行的。用 goroutine + channel 将它们改为并发查询，减少总响应时间。</p>
+    <p><strong>提示：</strong>启动 4 个 goroutine 同时查询 4 张表，用 <code>sync.WaitGroup</code> 等待全部完成。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 9.2：超时控制</h4>
+    <p>给 ListMachines 的数据库查询添加 5 秒超时：如果查询超过 5 秒未完成，返回 504 超时错误。</p>
+    <p><strong>提示：</strong>用 <code>context.WithTimeout</code> 创建子 context，传给 <code>db.WithContext(ctx)</code>。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 10 ========== -->
+<section id="ch10">
+  <h2>第10章 Gin 框架：路由 / 中间件 / 请求处理</h2>
+
+  <h3>10.1 路由注册</h3>
+  <pre><code>r := gin.Default()              // 创建引擎（默认带 Logger + Recovery 中间件）
+
+// 公开路由：不需要认证
+r.POST("/api/login", handlers.Login)
+
+// 路由分组：共享中间件
+auth := r.Group("/api")
+auth.Use(middleware.AuthRequired())    // 所有 /api/* 都需要登录
+{
+    auth.GET("/machines", handlers.ListMachines)
+    auth.GET("/machine/:ipmi_ip", handlers.GetMachine)   // :ipmi_ip 是路径参数
+    auth.POST("/machine", handlers.CreateMachine)
+}
+
+// 嵌套分组
+admin := auth.Group("/admin")
+admin.Use(middleware.AdminRequired())  // 管理员专属
+{
+    admin.DELETE("/network-info/clear-all", handlers.ClearAllNetworkInfo)
+}</code></pre>
+
+  <h3>10.2 Handler 函数签名</h3>
+  <pre><code>func GetMachine(c *gin.Context) {
+    ipmiIP := c.Param("ipmi_ip")           // 路径参数 /machine/:ipmi_ip
+    page := c.Query("page")                // 查询参数 ?page=1
+    page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))  // 带默认值+类型转换
+
+    var req LoginRequest
+    if err := c.ShouldBindJSON(&req); err != nil {   // 绑定 JSON 请求体
+        c.JSON(400, gin.H{"error": "参数错误"})
+        return
+    }
+
+    c.JSON(200, models.Response{         // 返回 JSON 响应
+        Code: 200,
+        Message: "查询成功",
+        Data: result,
+    })
+}</code></pre>
+
+  <h3>10.3 中间件模式</h3>
+  <pre><code>// Gin 中间件签名：func(c *gin.Context)
+func AuthRequired() gin.HandlerFunc {
+    return func(c *gin.Context) {
+        // 前置处理
+        token := extractToken(c)
+
+        if invalid {
+            c.JSON(401, gin.H{"error": "未登录"})
+            c.Abort()   // 阻止后续 handler 执行
+            return
+        }
+
+        // 注入数据到上下文
+        c.Set("username", claims.Username)
+
+        c.Next()        // 调用下一个中间件/handler
+
+        // 后置处理（在 handler 返回后执行）
+        // 通常用于记录日志、统计耗时
+    }
+}</code></pre>
+
+  <div class="callout info"><strong>中间件链执行顺序：</strong>Request → Logger → Recovery → AuthRequired → AdminRequired → Handler → (反向回去)。<code>c.Next()</code> 是链式调用的关键。</div>
+
+  <div class="exercise">
+    <h4>练习 10.1：请求日志中间件</h4>
+    <p>编写一个中间件，记录每个请求的：方法、路径、IP、响应状态码、耗时（毫秒）。日志格式：<code>[2026-05-19 16:00:00] GET /api/machines 200 45ms</code>。</p>
+    <p><strong>提示：</strong>在 <code>c.Next()</code> 之前记录开始时间，之后计算耗时。Gin 内置的 Logger 中间件可参考。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 10.2：CORS 中间件</h4>
+    <p>如果前端和后端不在同一个域，需要 CORS 跨域支持。编写一个中间件，设置 <code>Access-Control-Allow-Origin</code>、<code>Access-Control-Allow-Headers</code> 等响应头。</p>
+    <p><strong>提示：</strong>对 OPTIONS 预检请求返回 204。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 11 ========== -->
+<section id="ch11">
+  <h2>第11章 GORM：模型 / 迁移 / 查询 / 事务</h2>
+
+  <h3>11.1 模型定义与 AutoMigrate</h3>
+  <pre><code>type MachineInfo struct {
+    ID           uint      `gorm:"primaryKey" json:"id"`
+    ZbxID        string    `gorm:"column:zbx_id;not null;size:50"`
+    IPMIIP       string    `gorm:"column:ipmi_ip;not null;size:16"`
+    Manufacturer string    `gorm:"column:manufacturer;not null;size:20"`
+    CreatedAt    time.Time `gorm:"autoCreateTime"`
+}
+func (MachineInfo) TableName() string { return "machine_info" }
+
+// 自动建表（仅新建，不修改已有列类型）
+db.AutoMigrate(&models.User{}, &models.MachineInfo{}, ...)</code></pre>
+
+  <table>
+    <tr><th>Tag</th><th>作用</th></tr>
+    <tr><td><code>primaryKey</code></td><td>主键</td></tr>
+    <tr><td><code>column:xxx</code></td><td>指定列名（与字段名不同时必写）</td></tr>
+    <tr><td><code>not null</code></td><td>非空约束</td></tr>
+    <tr><td><code>size:50</code></td><td>VARCHAR 长度</td></tr>
+    <tr><td><code>uniqueIndex:idx_name</code></td><td>唯一索引</td></tr>
+    <tr><td><code>autoCreateTime</code></td><td>创建时自动设当前时间</td></tr>
+    <tr><td><code>type:text</code></td><td>指定列类型</td></tr>
+  </table>
+
+  <h3>11.2 查询方法大全</h3>
+  <pre><code>// 基础查询
+db.First(&user, "username = ?", username)     // SELECT ... WHERE username = ? LIMIT 1
+db.Find(&networks, "ipmi_ip = ?", ipmiIP)     // SELECT ... WHERE ipmi_ip = ?
+db.Where("ipmi_ip IN ?", ipmiIPs).Find(&list) // IN 查询
+
+// 模糊搜索（ILIKE 不区分大小写）
+db.Where("idc_name ILIKE ?", "%"+name+"%")
+
+// OR 条件组合
+db.Where("ipmi_ip ILIKE ? OR zbx_id ILIKE ?", like, like)
+
+// 子查询
+db.Where("EXISTS (SELECT 1 FROM business_info b WHERE b.ipmi_ip = idc_info.ipmi_ip AND b.business_id ILIKE ?)", like)
+
+// 分页
+db.Offset((page - 1) * size).Limit(size).Find(&results)
+
+// 排序
+db.Order("id DESC").Find(&list)
+
+// 聚合 + 分组
+db.Model(&NetworkInfo{}).Select("idc_code, count(*) as count").
+    Where("idc_code IS NOT NULL AND idc_code != ''").
+    Group("idc_code").Order("count DESC").Find(&stats)</code></pre>
+
+  <h3>11.3 事务</h3>
+  <pre><code>tx := db.Begin()          // 开启事务
+if tx.Error != nil { return }
+
+// 一系列操作...
+if err := tx.Create(&record).Error; err != nil {
+    tx.Rollback()          // 任何一步失败 → 全部回滚
+    return
+}
+if err := tx.Delete(&item).Error; err != nil {
+    tx.Rollback()
+    return
+}
+
+tx.Commit()               // 全部成功 → 提交</code></pre>
+
+  <div class="callout warn"><strong>事务要点：</strong>每个操作后检查 error，失败时 <code>Rollback</code>。成功时必须 <code>Commit</code>。如果函数返回但未 Commit 也未 Rollback，连接不会归还连接池，造成连接泄露。</div>
+
+  <h3>11.4 复杂 JOIN 查询（项目核心）</h3>
+  <pre><code>db.Table("idc_info i").
+    Select(`i.*, m.*, b.*,
+            COALESCE(n.networks, '[]') as network_info`).
+    Joins("LEFT JOIN machine_info m ON m.ipmi_ip = i.ipmi_ip").
+    Joins("LEFT JOIN business_info b ON b.ipmi_ip = i.ipmi_ip").
+    Joins(`LEFT JOIN (
+              SELECT zbx_id, json_agg(network_info.*) as networks
+              FROM network_info GROUP BY zbx_id
+          ) n ON n.zbx_id = i.zbx_id`).
+    Scan(&scanResults)   // 复杂查询用 Scan 到中间结构体</code></pre>
+
+  <div class="exercise">
+    <h4>练习 11.1：批量插入优化</h4>
+    <p>如果要从 CSV 文件导入 1000 条 machine_info 记录，逐条 Insert 很慢。用 GORM 的 <code>CreateInBatches</code> 实现批量插入（每批 100 条），并对比逐条插入的性能差异。</p>
+    <p><strong>提示：</strong><code>db.CreateInBatches(records, 100)</code>。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 11.2：软删除改造</h4>
+    <p>GORM 支持软删除（给模型加 <code>gorm.DeletedAt</code> 字段）。但不适用于本项目（我们手动归档到 deleted_records）。请说明软删除的优缺点，以及本项目为什么选择手动归档而非 GORM 软删除。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 12 ========== -->
+<section id="ch12">
+  <h2>第12章 安全认证：JWT / bcrypt / 中间件模式</h2>
+
+  <h3>12.1 bcrypt 密码哈希</h3>
+  <pre><code>import "golang.org/x/crypto/bcrypt"
+
+// 加密（不可逆）
+func hashPassword(password string) string {
+    hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+    if err != nil { log.Fatal(err) }
+    return string(hash)
+}
+
+// 验证
+if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
+    // 密码不匹配
+}</code></pre>
+
+  <p><code>bcrypt.DefaultCost</code> = 10，表示 2^10 = 1024 轮哈希迭代。越大越安全但越慢。10 是平衡的选择。</p>
+
+  <h3>12.2 JWT 生成与验证</h3>
+  <pre><code>import "github.com/golang-jwt/jwt/v5"
+
+type Claims struct {
+    Username string `json:"username"`
+    Role     string `json:"role"`
+    jwt.RegisteredClaims              // 标准声明：过期时间、签发时间、签发者
+}
+
+// 生成
+func GeneratoToken(username, role string) (string, error) {
+    claims := Claims{
+        Username: username,
+        Role:     role,
+        RegisteredClaims: jwt.RegisteredClaims{
+            ExpiresAt: jwt.NewNumericDate(time.Now().Add(72 * time.Hour)),
+            IssuedAt:  jwt.NewNumericDate(time.Now()),
+            Issuer:    "gin-postgre-api",
+        },
+    }
+    token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+    return token.SignedString(jwtSecret)
+}
+
+// 验证
+func ValidateToken(tokenString string) (*Claims, error) {
+    claims := &Claims{}
+    token, err := jwt.ParseWithClaims(tokenString, claims,
+        func(t *jwt.Token) (interface{}, error) {
+            return jwtSecret, nil   // 提供密钥用于验证签名
+        })
+    if err != nil || !token.Valid {
+        return nil, err
+    }
+    return claims, nil
+}</code></pre>
+
+  <div class="callout warn"><strong>JWT 不能吊销：</strong>JWT 一旦签发，在过期前始终有效。如果用户修改密码或账号被禁用，已有的 token 仍然可用。解决方案：(1) 短过期时间，(2) Redis 维护黑名单，(3) 服务端 session。</div>
+
+  <h3>12.3 认证中间件链</h3>
+  <p>两层中间件提供细粒度权限控制：</p>
+  <pre><code>// 第1层：身份认证（你是谁？）
+func AuthRequired() gin.HandlerFunc {
+    // 提取 Bearer Token → 验证 JWT → c.Set("username", ...)
+}
+
+// 第2层：权限检查（你能做什么？）
+func AdminRequired() gin.HandlerFunc {
+    // role, _ := c.Get("role")
+    // if role != "admin" → 403
+}
+
+// 路由配置
+auth := r.Group("/api")
+auth.Use(AuthRequired())                   // 所有 /api/* 需要登录
+{
+    auth.GET("/machines", ListMachines)    // 用户可访问
+    admin := auth.Group("/admin")
+    admin.Use(AdminRequired())              // /api/admin/* 需要管理员
+    {
+        admin.DELETE("/...", ClearAllNetworkInfo)
+    }
+}</code></pre>
+
+  <div class="exercise">
+    <h4>练习 12.1：Token 刷新机制</h4>
+    <p>实现一个 <code>POST /api/refresh</code> 接口：用户提交旧 token（即使快过期），返回新 token。要求验证旧 token 有效才能签发新 token。</p>
+    <p><strong>提示：</strong>解析旧 token 时忽略过期检查（<code>jwt.Parser</code> 设置 <code>SkipClaimsValidation</code>），然后生成新 token。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 12.2：登录频率限制</h4>
+    <p>写一个中间件，限制同一 IP 每分钟最多尝试登录 5 次。超过限制返回 429 Too Many Requests。</p>
+    <p><strong>提示：</strong>用 Redis 存储 <code>login:attempts:{ip}</code> 计数器，设置 60 秒 TTL。如果 Redis 不可用，降级为 map 内存存储。</p>
+  </div>
+</section>
+
+<!-- ========== Chapter 13 ========== -->
+<section id="ch13">
+  <h2>第13章 项目实战：综合案例分析</h2>
+
+  <h3>13.1 案例：删除管理的完整数据流</h3>
+  <p>以删除管理功能为例，追踪一个操作的完整路径：</p>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>1. 前端输入</h4>
+      <p>用户在 Deletion.vue 选择"机器信息"，填写机房编码 B11，点击删除按钮 → 弹框确认</p>
+    </div>
+    <div class="card">
+      <h4>2. API 请求</h4>
+      <p><code>POST /api/deletion/machines</code><br>Body: <code>{"idc_code":"B11"}</code><br>Header: <code>Authorization: Bearer ...</code></p>
+    </div>
+    <div class="card">
+      <h4>3. OpenResty 代理</h4>
+      <p>端口 80 → proxy_pass → 127.0.0.1:34185（Go API）</p>
+    </div>
+    <div class="card">
+      <h4>4. 中间件链</h4>
+      <p>AuthRequired 验证 JWT → 提取 username → DeleteMachines handler</p>
+    </div>
+  </div>
+
+  <div class="card-grid">
+    <div class="card">
+      <h4>5. Handler 处理</h4>
+      <p>查 idc_info 找到 B11 所有机器 → 事务开始 → 逐台归档到 deleted_records → 删除三表数据 → 清除缓存 → 提交</p>
+    </div>
+    <div class="card">
+      <h4>6. 响应返回</h4>
+      <p><code>{"code":200, "message":"成功删除 59 台机器，已归档保留30天", "data":{"deleted_count":59}}</code></p>
+    </div>
+    <div class="card">
+      <h4>7. 后端清理</h4>
+      <p>12小时后 goroutine 检查 → 30天后 expires_at 到期 → CleanupExpiredRecords 从 deleted_records 删除</p>
+    </div>
+    <div class="card">
+      <h4>8. 前端反馈</h4>
+      <p>alert 显示成功消息 → 清空输入框 → 刷新删除记录列表 → 用户看到归档记录</p>
+    </div>
+  </div>
+
+  <h3>13.2 技术选型决策表</h3>
+
+  <table>
+    <tr><th>决策点</th><th>选择</th><th>理由</th></tr>
+    <tr><td>路由模式</td><td>Hash 模式</td><td>不需要服务器端配置，OpenResty 直接服务静态文件</td></tr>
+    <tr><td>包管理器</td><td>pnpm</td><td>比 npm 快 2-3x，节省磁盘空间，lockfile 可靠</td></tr>
+    <tr><td>认证方案</td><td>JWT Bearer Token</td><td>无状态，适合 API 服务，不需要 session 存储</td></tr>
+    <tr><td>缓存策略</td><td>Cache-Aside</td><td>读缓存 → miss 查库 → 写入缓存；写操作删除缓存</td></tr>
+    <tr><td>删除方案</td><td>手动归档 30 天</td><td>比 GORM 软删除更透明，可追溯操作人和时间</td></tr>
+    <tr><td>网络模式</td><td>host 模式</td><td>简化容器间通信，适合单机部署</td></tr>
+    <tr><td>Redis 策略</td><td>可选降级</td><td>Redis 不可用时直接查库，缓存不是核心依赖</td></tr>
+  </table>
+
+  <h3>13.3 项目依赖包速查</h3>
+
+  <table>
+    <tr><th>包</th><th>用途</th><th>关键 API</th></tr>
+    <tr><td><code>github.com/gin-gonic/gin</code></td><td>HTTP 框架</td><td><code>gin.Default()</code>, <code>r.Group()</code>, <code>c.JSON()</code>, <code>c.Param()</code>, <code>c.ShouldBindJSON()</code></td></tr>
+    <tr><td><code>gorm.io/gorm</code></td><td>ORM</td><td><code>gorm.Open()</code>, <code>AutoMigrate()</code>, <code>First()</code>, <code>Find()</code>, <code>Create()</code>, <code>Updates()</code>, <code>Delete()</code>, <code>Begin()</code>, <code>Commit()</code></td></tr>
+    <tr><td><code>gorm.io/driver/postgres</code></td><td>PG 驱动</td><td><code>postgres.Open(dsn)</code></td></tr>
+    <tr><td><code>github.com/redis/go-redis/v9</code></td><td>Redis 客户端</td><td><code>redis.NewClient()</code>, <code>Get()</code>, <code>Set()</code>, <code>Del()</code></td></tr>
+    <tr><td><code>github.com/golang-jwt/jwt/v5</code></td><td>JWT</td><td><code>jwt.NewWithClaims()</code>, <code>jwt.ParseWithClaims()</code></td></tr>
+    <tr><td><code>golang.org/x/crypto</code></td><td>加密</td><td><code>bcrypt.GenerateFromPassword()</code>, <code>bcrypt.CompareHashAndPassword()</code></td></tr>
+    <tr><td><code>github.com/joho/godotenv</code></td><td>环境变量</td><td><code>godotenv.Load()</code></td></tr>
+    <tr><td><code>github.com/xuri/excelize/v2</code></td><td>Excel读写</td><td><code>excelize.NewFile()</code>, <code>SetCellValue()</code>, <code>WriteToBuffer()</code></td></tr>
+    <tr><td><code>vue</code> (3.5)</td><td>前端框架</td><td><code>ref()</code>, <code>reactive()</code>, <code>computed()</code>, <code>watch()</code>, <code>onMounted()</code>, <code>defineProps()</code></td></tr>
+    <tr><td><code>vue-router</code> (4.5)</td><td>前端路由</td><td><code>createRouter()</code>, <code>createWebHashHistory()</code>, <code>beforeEach()</code></td></tr>
+    <tr><td><code>vite</code> (6.2)</td><td>构建工具</td><td><code>defineConfig()</code>, <code>proxy</code>, <code>build.outDir</code></td></tr>
+  </table>
+
+  <div class="exercise">
+    <h4>练习 13.1：完整功能实现</h4>
+    <p>设计并实现"数据导出"功能：在 MachineInfo.vue 添加"导出当前搜索结果"按钮，后端新增 <code>GET /api/machines/export</code> 接口，将当前查询结果导出为 CSV 文件下载。</p>
+    <p><strong>提示：</strong>后端设置 <code>Content-Disposition: attachment; filename=machines.csv</code>，前端用 <code>&lt;a download&gt;</code> 或 <code>Blob</code> 触发下载。</p>
+  </div>
+
+  <div class="exercise">
+    <h4>练习 13.2：系统设计</h4>
+    <p>如果需要支持多租户（多个公司共用一套系统，数据隔离），你会如何设计？请写出：(1) 数据库 schema 改动，(2) 中间件改动，(3) 前端路由改动。不要求写代码，用文字和图描述设计即可。</p>
+  </div>
+</section>
+
+<footer>
+  <p>CMDB 全栈教学 — 13 章 + 26 练习题 — 基于项目实际代码编写 — 2026-05-19</p>
+</footer>
+
+</div>
+</body>
+</html>

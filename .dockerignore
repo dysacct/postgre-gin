@@ -1,0 +1,54 @@
+# Go
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+cmdb-api
+main
+
+# Test
+*_test.go
+*.test
+*.out
+
+# Git
+.git/
+.gitignore
+
+# Docs & tutorials
+*.md
+tutorial/
+
+# SQL / Config (not needed in image)
+*.sql
+postgresql.conf
+
+# Scripts
+*.sh
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+docker-compose.yml
+Dockerfile*
+.dockerignore
+
+# Frontend source (built separately)
+frontend/src/
+frontend/public/
+frontend/node_modules/
+frontend/package.json
+frontend/pnpm-lock.yaml
+frontend/tsconfig.json
+frontend/vite.config.ts
+frontend/index.html
+frontend/.npmrc
