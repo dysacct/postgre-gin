@@ -4,9 +4,9 @@ services:
       context: .
       dockerfile: Dockerfile
     image: cmdb-api:latest
-    network_mode: "host"
     container_name: cmdb_api
     restart: unless-stopped
+    network_mode: host
     environment:
       DB_HOST: 3418.s.kuaicdn.cn
       DB_PORT: "34189"
@@ -24,8 +24,8 @@ services:
       context: .
       dockerfile: Dockerfile.frontend
     image: cmdb-frontend:latest
-    network_mode: "host"
     container_name: cmdb_frontend
     restart: unless-stopped
+    network_mode: host
     depends_on:
       - golang-api

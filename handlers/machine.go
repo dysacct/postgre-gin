@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"gin-postgre-project/database"
 	"gin-postgre-project/models"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/redis/go-redis/v9"
+	"gorm.io/gorm"
 )
 
 const cacheTTL = 30 * time.Minute // 缓存过期时间30分钟
@@ -20,6 +22,95 @@ const cacheTTL = 30 * time.Minute // 缓存过期时间30分钟
 // 统一的redis缓存key格式
 func cacheKey(ipmiIP string) string {
 	return "cache:machine:" + ipmiIP
+}
+
+func buildIDCUpdateData(idc models.IDCInfo) map[string]interface{} {
+	updateData := make(map[string]interface{})
+	if idc.ZbxID != "" {
+		updateData["zbx_id"] = idc.ZbxID
+	}
+	if idc.IDCCode != "" {
+		updateData["idc_code"] = idc.IDCCode
+	}
+	if idc.IDCName != "" {
+		updateData["idc_name"] = idc.IDCName
+	}
+	if idc.SSHIP != "" {
+		updateData["ssh_ip"] = idc.SSHIP
+	}
+	return updateData
+}
+
+func syncRelatedZbxID(tx *gorm.DB, ipmiIP string, oldZbxID string, newZbxID string) error {
+	if newZbxID == "" {
+		return nil
+	}
+
+	idc, err := resolveCurrentMachineIdentity(tx, ipmiIP)
+	machineID := ""
+	if err == nil {
+		machineID = idc.MachineID
+	}
+
+	relatedQuery := "ipmi_ip = ?"
+	relatedArgs := []interface{}{ipmiIP}
+	if machineID != "" {
+		relatedQuery = "machine_id = ? OR (machine_id = '' AND ipmi_ip = ?)"
+		relatedArgs = []interface{}{machineID, ipmiIP}
+	}
+
+	if err := tx.Model(&models.MachineInfo{}).Where(relatedQuery, relatedArgs...).Update("zbx_id", newZbxID).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.BusinessInfo{}).Where(relatedQuery, relatedArgs...).Update("zbx_id", newZbxID).Error; err != nil {
+		return err
+	}
+
+	networkQuery := tx.Model(&models.NetworkInfo{}).Where("ipmi_ip = ?", ipmiIP)
+	if oldZbxID != "" && oldZbxID != newZbxID {
+		networkQuery = tx.Model(&models.NetworkInfo{}).Where("ipmi_ip = ? OR zbx_id = ?", ipmiIP, oldZbxID)
+	}
+	if err := networkQuery.Update("zbx_id", newZbxID).Error; err != nil {
+		return err
+	}
+	if machineID != "" {
+		if err := tx.Model(&models.NetworkInfo{}).Where("ipmi_ip = ? OR zbx_id = ?", ipmiIP, newZbxID).Update("machine_id", machineID).Error; err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func updateIDCAndRelatedZbxID(tx *gorm.DB, existingIDC *models.IDCInfo, updateIDC models.IDCInfo) error {
+	updateData := buildIDCUpdateData(updateIDC)
+	if len(updateData) == 0 {
+		return nil
+	}
+
+	oldZbxID := existingIDC.ZbxID
+	if err := tx.Model(existingIDC).Updates(updateData).Error; err != nil {
+		return err
+	}
+
+	return syncRelatedZbxID(tx, existingIDC.IPMIIP, oldZbxID, updateIDC.ZbxID)
+}
+
+func loadMachineRelations(idc models.IDCInfo) (models.MachineInfo, models.BusinessInfo, []models.NetworkInfo) {
+	var machine models.MachineInfo
+	var business models.BusinessInfo
+	var networks []models.NetworkInfo
+
+	if idc.MachineID != "" {
+		database.DB.First(&machine, "machine_id = ? OR (machine_id = '' AND ipmi_ip = ?)", idc.MachineID, idc.IPMIIP)
+		database.DB.First(&business, "machine_id = ? OR (machine_id = '' AND ipmi_ip = ?)", idc.MachineID, idc.IPMIIP)
+		database.DB.Find(&networks, "machine_id = ? OR ipmi_ip = ?", idc.MachineID, idc.IPMIIP)
+		return machine, business, networks
+	}
+
+	database.DB.First(&machine, "ipmi_ip = ?", idc.IPMIIP)
+	database.DB.First(&business, "ipmi_ip = ?", idc.IPMIIP)
+	database.DB.Find(&networks, "ipmi_ip = ?", idc.IPMIIP)
+	return machine, business, networks
 }
 
 // GetMachine 获取单个机器信息
@@ -62,14 +153,7 @@ func GetMachine(c *gin.Context) {
 		})
 		return
 	}
-	var machine models.MachineInfo
-	database.DB.First(&machine, "ipmi_ip = ?", ipmiIP)
-
-	var business models.BusinessInfo
-	database.DB.First(&business, "ipmi_ip = ?", ipmiIP)
-
-	var networks []models.NetworkInfo
-	database.DB.Find(&networks, "ipmi_ip = ?", ipmiIP)
+	machine, business, networks := loadMachineRelations(idc)
 
 	// 组装最终返回数据
 	result := gin.H{
@@ -103,23 +187,66 @@ func CreateMachine(c *gin.Context) {
 		return
 	}
 
-	// 插入主表
-	// 失败情况: 1. 数据库插入失败 2. 主键冲突
-	if err := database.DB.Create(&idc).Error; err != nil {
+	var responseIDC models.IDCInfo
+	created := false
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		now := time.Now()
+		if err := ensureIDCInfoMachineID(&idc); err != nil {
+			return err
+		}
+
+		var existingIDC models.IDCInfo
+		err := tx.First(&existingIDC, "ipmi_ip = ?", idc.IPMIIP).Error
+		if err == nil {
+			if existingIDC.MachineID == "" {
+				if err := ensureIDCInfoMachineID(&existingIDC); err != nil {
+					return err
+				}
+				if err := tx.Model(&existingIDC).Update("machine_id", existingIDC.MachineID).Error; err != nil {
+					return err
+				}
+			}
+			if err := updateIDCAndRelatedZbxID(tx, &existingIDC, idc); err != nil {
+				return err
+			}
+			if err := tx.First(&responseIDC, existingIDC.ID).Error; err != nil {
+				return err
+			}
+			return touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if err := tx.Create(&idc).Error; err != nil {
+			return err
+		}
+		created = true
+		responseIDC = idc
+		return touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now)
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code:    500,
-			Message: "创建失败: " + err.Error(),
+			Message: "保存机器失败: " + err.Error(),
 		})
 		return
 	}
 
-	// 清除缓存(防止别人之前查过但没这台机器)
-	database.CacheDel(c.Request.Context(), cacheKey(idc.IPMIIP)) // IPMIIP 是IDCInfo的唯一标识
+	database.CacheDel(c.Request.Context(), cacheKey(responseIDC.IPMIIP), networkCacheKey(responseIDC.IPMIIP))
+
+	if !created {
+		c.JSON(http.StatusOK, models.Response{
+			Code:    200,
+			Message: "机器已存在，已按ipmi_ip更新",
+			Data:    responseIDC,
+		})
+		return
+	}
 
 	c.JSON(http.StatusOK, models.Response{
 		Code:    200,
 		Message: "创建成功",
-		Data:    idc,
+		Data:    responseIDC,
 	})
 }
 
@@ -148,22 +275,7 @@ func UpdateMachine(c *gin.Context) {
 		return
 	}
 
-	// 使用部分更新，只更新非零值字段
-	updateData := make(map[string]interface{})
-
-	// 检查每个字段是否需要更新（非零值才更新）
-	if updateIDC.ZbxID != "" {
-		updateData["zbx_id"] = updateIDC.ZbxID
-	}
-	if updateIDC.IDCCode != "" {
-		updateData["idc_code"] = updateIDC.IDCCode
-	}
-	if updateIDC.IDCName != "" {
-		updateData["idc_name"] = updateIDC.IDCName
-	}
-	if updateIDC.SSHIP != "" {
-		updateData["ssh_ip"] = updateIDC.SSHIP
-	}
+	updateData := buildIDCUpdateData(updateIDC)
 
 	// 如果没有任何字段需要更新
 	if len(updateData) == 0 {
@@ -174,11 +286,17 @@ func UpdateMachine(c *gin.Context) {
 		return
 	}
 
-	// 执行部分更新
-	if err := database.DB.Model(&existingIDC).Updates(updateData).Error; err != nil {
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		idc, err := resolveCurrentMachineIdentity(tx, ipmiIP)
+		if err != nil {
+			return err
+		}
+		existingIDC = idc
+		return updateIDCAndRelatedZbxID(tx, &existingIDC, updateIDC)
+	}); err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code:    500,
-			Message: "更新IDC信息失败",
+			Message: "更新IDC信息失败: " + err.Error(),
 		})
 		return
 	}
@@ -188,6 +306,8 @@ func UpdateMachine(c *gin.Context) {
 
 	// 清除缓存
 	database.CacheDel(c.Request.Context(), cacheKey(ipmiIP))
+	database.CacheDel(c.Request.Context(), networkCacheKey(ipmiIP))
+	touchMachineSeen(ipmiIP, updateIDC.ZbxID)
 
 	c.JSON(http.StatusOK, models.Response{
 		Code:    200,
@@ -208,16 +328,6 @@ func UpdateBusinessInfo(c *gin.Context) {
 		return
 	}
 
-	// 检查机器是否存在
-	var idc models.IDCInfo
-	if err := database.DB.First(&idc, "ipmi_ip = ?", ipmiIP).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:    404,
-			Message: "机器不存在",
-		})
-		return
-	}
-
 	// 绑定请求数据
 	var businessInfo models.BusinessInfo
 	if err := c.ShouldBindJSON(&businessInfo); err != nil {
@@ -228,27 +338,38 @@ func UpdateBusinessInfo(c *gin.Context) {
 		return
 	}
 
-	// 设置ipmi_ip和zbx_id
-	businessInfo.IPMIIP = ipmiIP
-	businessInfo.ZbxID = idc.ZbxID
-
-	// 检查业务信息是否已存在
-	var existingBusiness models.BusinessInfo
-	err := database.DB.First(&existingBusiness, "ipmi_ip = ?", ipmiIP).Error
-
-	if err != nil {
-		// 业务信息不存在，创建新记录
-		if err := database.DB.Create(&businessInfo).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:    500,
-				Message: "创建业务信息失败",
-			})
-			return
+	var idc models.IDCInfo
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		var err error
+		idc, err = resolveCurrentMachineIdentity(tx, ipmiIP)
+		if err != nil {
+			return err
 		}
-	} else {
+
+		// 设置ipmi_ip和zbx_id
+		businessInfo.IPMIIP = ipmiIP
+		businessInfo.ZbxID = idc.ZbxID
+		businessInfo.MachineID = idc.MachineID
+
+		// 检查业务信息是否已存在
+		var existingBusiness models.BusinessInfo
+		err = tx.First(&existingBusiness, "machine_id = ? OR (machine_id = '' AND ipmi_ip = ?)", idc.MachineID, ipmiIP).Error
+
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			// 业务信息不存在，创建新记录
+			return tx.Create(&businessInfo).Error
+		}
+
 		// 业务信息已存在，使用部分更新
 		// 只更新非零值字段，避免覆盖未传入的字段
-		updateData := make(map[string]interface{})
+		updateData := map[string]interface{}{
+			"machine_id": idc.MachineID,
+			"ipmi_ip":    ipmiIP,
+			"zbx_id":     idc.ZbxID,
+		}
 
 		// 检查每个字段是否需要更新（非零值才更新）
 		if businessInfo.BusinessName != "" {
@@ -270,30 +391,30 @@ func UpdateBusinessInfo(c *gin.Context) {
 			updateData["old_business_speed"] = businessInfo.OldBusinessSpeed
 		}
 
-		// 如果没有任何字段需要更新
-		if len(updateData) == 0 {
-			c.JSON(http.StatusBadRequest, models.Response{
-				Code:    400,
-				Message: "没有提供需要更新的字段",
-			})
-			return
-		}
-
 		// 执行部分更新
-		if err := database.DB.Model(&existingBusiness).Updates(updateData).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:    500,
-				Message: "更新业务信息失败",
-			})
-			return
+		if err := tx.Model(&existingBusiness).Updates(updateData).Error; err != nil {
+			return err
 		}
 
 		// 重新查询更新后的数据用于返回
-		database.DB.First(&businessInfo, existingBusiness.ID)
+		return tx.First(&businessInfo, existingBusiness.ID).Error
+	}); err != nil {
+		status := http.StatusInternalServerError
+		message := "保存业务信息失败: " + err.Error()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+			message = "机器不存在"
+		}
+		c.JSON(status, models.Response{
+			Code:    status,
+			Message: message,
+		})
+		return
 	}
 
 	// 清除缓存
 	database.CacheDel(c.Request.Context(), cacheKey(ipmiIP))
+	touchMachineSeen(ipmiIP, idc.ZbxID)
 
 	c.JSON(http.StatusOK, models.Response{
 		Code:    200,
@@ -314,16 +435,6 @@ func UpdateMachineInfo(c *gin.Context) {
 		return
 	}
 
-	// 检查机器是否存在
-	var idc models.IDCInfo
-	if err := database.DB.First(&idc, "ipmi_ip = ?", ipmiIP).Error; err != nil {
-		c.JSON(http.StatusNotFound, models.Response{
-			Code:    404,
-			Message: "机器不存在",
-		})
-		return
-	}
-
 	// 绑定请求数据
 	var machineInfo models.MachineInfo
 	if err := c.ShouldBindJSON(&machineInfo); err != nil {
@@ -334,27 +445,68 @@ func UpdateMachineInfo(c *gin.Context) {
 		return
 	}
 
-	// 设置ipmi_ip和zbx_id
-	machineInfo.IPMIIP = ipmiIP
-	machineInfo.ZbxID = idc.ZbxID
-
-	// 检查机器硬件信息是否已存在
-	var existingMachine models.MachineInfo
-	err := database.DB.First(&existingMachine, "ipmi_ip = ?", ipmiIP).Error
-
-	if err != nil {
-		// 机器硬件信息不存在，创建新记录
-		if err := database.DB.Create(&machineInfo).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:    500,
-				Message: "创建机器硬件信息失败: " + err.Error(),
-			})
-			return
+	var idc models.IDCInfo
+	replaced := false
+	if err := database.DB.Transaction(func(tx *gorm.DB) error {
+		var err error
+		idc, err = resolveCurrentMachineIdentity(tx, ipmiIP)
+		if err != nil {
+			return err
 		}
-	} else {
+
+		// 设置ipmi_ip和zbx_id
+		machineInfo.IPMIIP = ipmiIP
+		machineInfo.ZbxID = idc.ZbxID
+		machineInfo.MachineID = idc.MachineID
+
+		// 检查机器硬件信息是否已存在
+		var existingMachine models.MachineInfo
+		err = tx.First(&existingMachine, "machine_id = ? OR (machine_id = '' AND ipmi_ip = ?)", idc.MachineID, ipmiIP).Error
+
+		if err != nil {
+			if !errors.Is(err, gorm.ErrRecordNotFound) {
+				return err
+			}
+			// 机器硬件信息不存在，创建新记录
+			if err := tx.Create(&machineInfo).Error; err != nil {
+				return err
+			}
+			return touchMachineSyncState(tx, ipmiIP, idc.ZbxID, time.Now())
+		}
+
+		if existingMachine.ServerSN != "" && machineInfo.ServerSN != "" && existingMachine.ServerSN != machineInfo.ServerSN {
+			now := time.Now()
+			if _, err := archiveMachineByIPMI(tx, ipmiIP, "replacement", now); err != nil {
+				return err
+			}
+			newID, err := newMachineID()
+			if err != nil {
+				return err
+			}
+			idc.ID = 0
+			idc.MachineID = newID
+			idc.CreatedAt = time.Time{}
+			if err := tx.Create(&idc).Error; err != nil {
+				return err
+			}
+			machineInfo.ID = 0
+			machineInfo.MachineID = newID
+			machineInfo.ZbxID = idc.ZbxID
+			machineInfo.CreatedAt = time.Time{}
+			if err := tx.Create(&machineInfo).Error; err != nil {
+				return err
+			}
+			replaced = true
+			return touchMachineSyncState(tx, ipmiIP, idc.ZbxID, now)
+		}
+
 		// 机器硬件信息已存在，使用部分更新
 		// 只更新非零值字段，避免覆盖未传入的字段
-		updateData := make(map[string]interface{})
+		updateData := map[string]interface{}{
+			"machine_id": idc.MachineID,
+			"ipmi_ip":    ipmiIP,
+			"zbx_id":     idc.ZbxID,
+		}
 
 		// 检查每个字段是否需要更新（非零值才更新）
 		if machineInfo.SystemType != "" {
@@ -375,6 +527,9 @@ func UpdateMachineInfo(c *gin.Context) {
 		if machineInfo.HDDCount != "" {
 			updateData["hdd_count"] = machineInfo.HDDCount
 		}
+		if machineInfo.SysHDDCount != "" {
+			updateData["sys_hdd_count"] = machineInfo.SysHDDCount
+		}
 		if machineInfo.MemoryCount != "" {
 			updateData["memory_count"] = machineInfo.MemoryCount
 		}
@@ -384,35 +539,45 @@ func UpdateMachineInfo(c *gin.Context) {
 		if machineInfo.ServerHeight != "" {
 			updateData["server_height"] = machineInfo.ServerHeight
 		}
-
-		// 如果没有任何字段需要更新
-		if len(updateData) == 0 {
-			c.JSON(http.StatusBadRequest, models.Response{
-				Code:    400,
-				Message: "没有提供需要更新的字段",
-			})
-			return
+		if machineInfo.SwitchPort != "" {
+			updateData["switch_port"] = machineInfo.SwitchPort
 		}
 
 		// 执行部分更新
-		if err := database.DB.Model(&existingMachine).Updates(updateData).Error; err != nil {
-			c.JSON(http.StatusInternalServerError, models.Response{
-				Code:    500,
-				Message: "更新机器硬件信息失败: " + err.Error(),
-			})
-			return
+		if err := tx.Model(&existingMachine).Updates(updateData).Error; err != nil {
+			return err
 		}
 
 		// 重新查询更新后的数据用于返回
-		database.DB.First(&machineInfo, existingMachine.ID)
+		if err := tx.First(&machineInfo, existingMachine.ID).Error; err != nil {
+			return err
+		}
+		return touchMachineSyncState(tx, ipmiIP, idc.ZbxID, time.Now())
+	}); err != nil {
+		status := http.StatusInternalServerError
+		message := "保存机器硬件信息失败: " + err.Error()
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			status = http.StatusNotFound
+			message = "机器不存在"
+		}
+		c.JSON(status, models.Response{
+			Code:    status,
+			Message: message,
+		})
+		return
 	}
 
 	// 清除缓存
 	database.CacheDel(c.Request.Context(), cacheKey(ipmiIP))
+	database.CacheDel(c.Request.Context(), networkCacheKey(ipmiIP))
 
+	message := "机器硬件信息更新成功"
+	if replaced {
+		message = "检测到序列号变化，旧机器已归档，新机器实例已创建"
+	}
 	c.JSON(http.StatusOK, models.Response{
 		Code:    200,
-		Message: "机器硬件信息更新成功",
+		Message: message,
 		Data:    machineInfo,
 	})
 }
@@ -644,7 +809,7 @@ func SearchMachinesByIDC(c *gin.Context) {
 	// 通过业务ID关联 business_info 表查询对应机器
 	if businessID != "" {
 		conditions = append(conditions,
-			"EXISTS (SELECT 1 FROM business_info b WHERE b.ipmi_ip = idc_info.ipmi_ip AND b.business_id ILIKE ?)")
+			"EXISTS (SELECT 1 FROM business_info b WHERE (b.machine_id = idc_info.machine_id OR (b.machine_id = '' AND b.ipmi_ip = idc_info.ipmi_ip)) AND b.business_id ILIKE ?)")
 		args = append(args, "%"+businessID+"%")
 	}
 
@@ -663,14 +828,7 @@ func SearchMachinesByIDC(c *gin.Context) {
 
 	// 为每个IDC信息查询关联的机器和业务信息
 	for _, idc := range idcInfos {
-		var machine models.MachineInfo
-		var business models.BusinessInfo
-		var networks []models.NetworkInfo
-
-		// 使用ipmi_ip作为关联字段
-		database.DB.First(&machine, "ipmi_ip = ?", idc.IPMIIP)
-		database.DB.First(&business, "ipmi_ip = ?", idc.IPMIIP)
-		database.DB.Find(&networks, "ipmi_ip = ?", idc.IPMIIP)
+		machine, business, networks := loadMachineRelations(idc)
 
 		result := gin.H{
 			"idc_info":      idc,
@@ -759,13 +917,13 @@ func SearchMachinesByManufacturer(c *gin.Context) {
 	// 为每个机器硬件信息查询关联的IDC、业务和网络信息
 	for _, machine := range machineInfos {
 		var idc models.IDCInfo
-		var business models.BusinessInfo
-		var networks []models.NetworkInfo
 
-		// 使用 ipmi_ip 作为关联字段
-		database.DB.First(&idc, "ipmi_ip = ?", machine.IPMIIP)
-		database.DB.First(&business, "ipmi_ip = ?", machine.IPMIIP)
-		database.DB.Find(&networks, "ipmi_ip = ?", machine.IPMIIP)
+		if machine.MachineID != "" {
+			database.DB.First(&idc, "machine_id = ?", machine.MachineID)
+		} else {
+			database.DB.First(&idc, "ipmi_ip = ?", machine.IPMIIP)
+		}
+		_, business, networks := loadMachineRelations(idc)
 
 		result := gin.H{
 			"idc_info":      idc,
@@ -790,4 +948,3 @@ func SearchMachinesByManufacturer(c *gin.Context) {
 		Data:    response,
 	})
 }
-

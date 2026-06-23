@@ -4,6 +4,7 @@ import "time"
 
 type BusinessInfo struct {
 	ID               uint      `gorm:"primaryKey" json:"id"`
+	MachineID        string    `gorm:"column:machine_id;not null;size:36;index" json:"machine_id"`
 	ZbxID            string    `gorm:"column:zbx_id;not null;size:50" json:"zbx_id"`
 	IPMIIP           string    `gorm:"column:ipmi_ip;not null;size:16" json:"ipmi_ip"`
 	BusinessName     string    `gorm:"column:business_name;not null;size:100" json:"business_name"`

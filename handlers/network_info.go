@@ -1,6 +1,7 @@
 package handlers
 
 import (
+	"errors"
 	"fmt"
 	"gin-postgre-project/database"
 	"gin-postgre-project/models"
@@ -9,7 +10,174 @@ import (
 	"strings"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
+
+type networkConflictError struct {
+	message string
+}
+
+func (e *networkConflictError) Error() string {
+	return e.message
+}
+
+func trimStringPtr(value *string) string {
+	if value == nil {
+		return ""
+	}
+	return strings.TrimSpace(*value)
+}
+
+func normalizeNetworkInfoIPs(networkInfo *models.NetworkInfo) {
+	if trimStringPtr(networkInfo.IPv4IP) == "" {
+		networkInfo.IPv4IP = nil
+	}
+	if trimStringPtr(networkInfo.IPv6IP) == "" {
+		networkInfo.IPv6IP = nil
+	}
+}
+
+func networkInfoUpdateFields(networkInfo models.NetworkInfo) map[string]interface{} {
+	updateFields := make(map[string]interface{})
+	if networkInfo.MachineID != nil {
+		updateFields["machine_id"] = *networkInfo.MachineID
+	}
+	if networkInfo.IPMIIP != nil {
+		updateFields["ipmi_ip"] = *networkInfo.IPMIIP
+	}
+	if networkInfo.IPv4IP != nil {
+		updateFields["ipv4_ip"] = *networkInfo.IPv4IP
+	}
+	if networkInfo.ZbxID != nil {
+		updateFields["zbx_id"] = *networkInfo.ZbxID
+	}
+	if networkInfo.MacAddress != nil {
+		updateFields["mac_address"] = *networkInfo.MacAddress
+	}
+	if networkInfo.EthName != nil {
+		updateFields["eth_name"] = *networkInfo.EthName
+	}
+	if networkInfo.IDCCode != nil {
+		updateFields["idc_code"] = *networkInfo.IDCCode
+	}
+	if networkInfo.NetType != nil {
+		updateFields["net_type"] = *networkInfo.NetType
+	}
+	if networkInfo.Vlan != nil {
+		updateFields["vlan"] = *networkInfo.Vlan
+	}
+	if networkInfo.IPv4Gateway != nil {
+		updateFields["ipv4_gateway"] = *networkInfo.IPv4Gateway
+	}
+	if networkInfo.IPv6IP != nil {
+		updateFields["ipv6_ip"] = *networkInfo.IPv6IP
+	}
+	if networkInfo.IPv6Gateway != nil {
+		updateFields["ipv6_gateway"] = *networkInfo.IPv6Gateway
+	}
+	if networkInfo.IPSpeed != nil {
+		updateFields["ip_speed"] = *networkInfo.IPSpeed
+	}
+	if networkInfo.IPStatus != nil {
+		updateFields["ip_status"] = *networkInfo.IPStatus
+	}
+	if networkInfo.IPNotes != nil {
+		updateFields["ip_notes"] = *networkInfo.IPNotes
+	}
+	if networkInfo.SegmentNotes != nil {
+		updateFields["segment_notes"] = *networkInfo.SegmentNotes
+	}
+	return updateFields
+}
+
+func findExistingNetworkByIP(tx *gorm.DB, networkInfo models.NetworkInfo) (*models.NetworkInfo, error) {
+	ipv4IP := trimStringPtr(networkInfo.IPv4IP)
+	ipv6IP := trimStringPtr(networkInfo.IPv6IP)
+	if ipv4IP == "" && ipv6IP == "" {
+		return nil, nil
+	}
+
+	var matches []models.NetworkInfo
+	query := tx.Model(&models.NetworkInfo{})
+	if ipv4IP != "" && ipv6IP != "" {
+		query = query.Where("ipv4_ip = ? OR ipv6_ip = ?", ipv4IP, ipv6IP)
+	} else if ipv4IP != "" {
+		query = query.Where("ipv4_ip = ?", ipv4IP)
+	} else {
+		query = query.Where("ipv6_ip = ?", ipv6IP)
+	}
+
+	if err := query.Find(&matches).Error; err != nil {
+		return nil, err
+	}
+	if len(matches) == 0 {
+		return nil, nil
+	}
+	if len(matches) > 1 {
+		return nil, &networkConflictError{
+			message: "请求中的 ipv4_ip 和 ipv6_ip 分别命中不同网络记录，请先人工合并或修正数据",
+		}
+	}
+	return &matches[0], nil
+}
+
+func ensureNoNetworkIPConflict(tx *gorm.DB, excludeID uint, updateFields map[string]interface{}) error {
+	ipv4IP := ""
+	if value, ok := updateFields["ipv4_ip"]; ok {
+		if typed, ok := value.(string); ok {
+			ipv4IP = strings.TrimSpace(typed)
+		}
+	}
+	ipv6IP := ""
+	if value, ok := updateFields["ipv6_ip"]; ok {
+		if typed, ok := value.(string); ok {
+			ipv6IP = strings.TrimSpace(typed)
+		}
+	}
+	if ipv4IP == "" && ipv6IP == "" {
+		return nil
+	}
+
+	var conflict models.NetworkInfo
+	query := tx.Where("id <> ?", excludeID)
+	if ipv4IP != "" && ipv6IP != "" {
+		query = query.Where("ipv4_ip = ? OR ipv6_ip = ?", ipv4IP, ipv6IP)
+	} else if ipv4IP != "" {
+		query = query.Where("ipv4_ip = ?", ipv4IP)
+	} else {
+		query = query.Where("ipv6_ip = ?", ipv6IP)
+	}
+
+	if err := query.First(&conflict).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+
+	return &networkConflictError{
+		message: fmt.Sprintf("目标 IP 已存在于网络记录 id=%d，不能更新为重复 IP", conflict.ID),
+	}
+}
+
+func normalizeNetworkIPUpdateFields(updateFields map[string]interface{}) {
+	for _, field := range []string{"ipv4_ip", "ipv6_ip"} {
+		value, ok := updateFields[field]
+		if !ok {
+			continue
+		}
+		typed, ok := value.(string)
+		if !ok {
+			continue
+		}
+		trimmed := strings.TrimSpace(typed)
+		if trimmed == "" {
+			updateFields[field] = nil
+			continue
+		}
+		updateFields[field] = trimmed
+	}
+}
 
 // CreateNetworkInfo 创建网络信息
 // 创建新的网络配置信息，ipv4_ip 和 ipv6_ip 必须唯一
@@ -23,6 +191,8 @@ func CreateNetworkInfo(c *gin.Context) {
 		return
 	}
 
+	normalizeNetworkInfoIPs(&networkInfo)
+
 	// 检查至少提供一个 IP 地址
 	if (networkInfo.IPv4IP == nil || *networkInfo.IPv4IP == "") &&
 		(networkInfo.IPv6IP == nil || *networkInfo.IPv6IP == "") {
@@ -33,23 +203,73 @@ func CreateNetworkInfo(c *gin.Context) {
 		return
 	}
 
-	if err := database.DB.Create(&networkInfo).Error; err != nil {
-		c.JSON(http.StatusInternalServerError, models.Response{
-			Code:    500,
+	var savedInfo models.NetworkInfo
+	created := false
+	previousIPMIIP := ""
+	err := database.DB.Transaction(func(tx *gorm.DB) error {
+		if err := applyMachineIdentityToNetwork(tx, &networkInfo); err != nil {
+			return err
+		}
+		existingInfo, err := findExistingNetworkByIP(tx, networkInfo)
+		if err != nil {
+			return err
+		}
+
+		if existingInfo != nil {
+			if existingInfo.IPMIIP != nil {
+				previousIPMIIP = *existingInfo.IPMIIP
+			}
+			updateFields := networkInfoUpdateFields(networkInfo)
+			if len(updateFields) > 0 {
+				if err := tx.Model(existingInfo).Updates(updateFields).Error; err != nil {
+					return err
+				}
+			}
+			return tx.First(&savedInfo, existingInfo.ID).Error
+		}
+
+		if err := tx.Create(&networkInfo).Error; err != nil {
+			return err
+		}
+		savedInfo = networkInfo
+		created = true
+		return nil
+	})
+	if err != nil {
+		var conflictErr *networkConflictError
+		status := http.StatusInternalServerError
+		if errors.As(err, &conflictErr) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, models.Response{
+			Code:    status,
 			Message: "创建网络信息失败: " + err.Error(),
 		})
 		return
 	}
 
 	// 清除相关缓存
-	if networkInfo.IPMIIP != nil {
-		database.CacheDel(c.Request.Context(), networkCacheKey(*networkInfo.IPMIIP))
+	if previousIPMIIP != "" {
+		database.CacheDel(c.Request.Context(), networkCacheKey(previousIPMIIP))
+	}
+	if savedInfo.IPMIIP != nil {
+		database.CacheDel(c.Request.Context(), networkCacheKey(*savedInfo.IPMIIP))
+		zbxID := ""
+		if savedInfo.ZbxID != nil {
+			zbxID = *savedInfo.ZbxID
+		}
+		touchMachineSeen(*savedInfo.IPMIIP, zbxID)
+	}
+
+	message := "网络信息已存在，已按 IP 更新"
+	if created {
+		message = "创建网络信息成功"
 	}
 
 	c.JSON(http.StatusOK, models.Response{
 		Code:    200,
-		Message: "创建网络信息成功",
-		Data:    networkInfo,
+		Message: message,
+		Data:    savedInfo,
 	})
 }
 
@@ -216,6 +436,25 @@ func UpdateNetworkInfo(c *gin.Context) {
 		return
 	}
 
+	normalizeNetworkIPUpdateFields(updateFields)
+	if err := ensureNoNetworkIPConflict(database.DB, existingInfo.ID, updateFields); err != nil {
+		var conflictErr *networkConflictError
+		status := http.StatusInternalServerError
+		if errors.As(err, &conflictErr) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, models.Response{
+			Code:    status,
+			Message: "更新网络信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	previousIPMIIP := ""
+	if existingInfo.IPMIIP != nil {
+		previousIPMIIP = *existingInfo.IPMIIP
+	}
+
 	// 使用 GORM 的 Updates 方法进行局部更新
 	if err := database.DB.Model(&existingInfo).Updates(updateFields).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -230,8 +469,16 @@ func UpdateNetworkInfo(c *gin.Context) {
 	database.DB.First(&updatedInfo, id)
 
 	// 清除相关缓存
+	if previousIPMIIP != "" {
+		database.CacheDel(c.Request.Context(), networkCacheKey(previousIPMIIP))
+	}
 	if updatedInfo.IPMIIP != nil {
 		database.CacheDel(c.Request.Context(), networkCacheKey(*updatedInfo.IPMIIP))
+		zbxID := ""
+		if updatedInfo.ZbxID != nil {
+			zbxID = *updatedInfo.ZbxID
+		}
+		touchMachineSeen(*updatedInfo.IPMIIP, zbxID)
 	}
 
 	c.JSON(http.StatusOK, models.Response{
@@ -759,14 +1006,16 @@ func SearchNetworkInfo(c *gin.Context) {
 func GetNetworkInfoStats(c *gin.Context) {
 	type IDCStats struct {
 		IDCCode string `json:"idc_code"`
+		IDCName string `json:"idc_name"`
 		Count   int64  `json:"count"`
 	}
 
 	var stats []IDCStats
-	if err := database.DB.Model(&models.NetworkInfo{}).
-		Select("idc_code, count(*) as count").
-		Where("idc_code IS NOT NULL AND idc_code != ''").
-		Group("idc_code").
+	if err := database.DB.Table("network_info n").
+		Select("n.idc_code, COALESCE(MAX(i.idc_name), '') as idc_name, count(*) as count").
+		Joins("LEFT JOIN idc_info i ON i.idc_code = n.idc_code").
+		Where("n.idc_code IS NOT NULL AND n.idc_code != ''").
+		Group("n.idc_code").
 		Order("count DESC").
 		Find(&stats).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -890,6 +1139,25 @@ func UpdateNetworkInfoByIPv4(c *gin.Context) {
 		return
 	}
 
+	normalizeNetworkIPUpdateFields(updateFields)
+	if err := ensureNoNetworkIPConflict(database.DB, existingInfo.ID, updateFields); err != nil {
+		var conflictErr *networkConflictError
+		status := http.StatusInternalServerError
+		if errors.As(err, &conflictErr) {
+			status = http.StatusConflict
+		}
+		c.JSON(status, models.Response{
+			Code:    status,
+			Message: "更新网络信息失败: " + err.Error(),
+		})
+		return
+	}
+
+	previousIPMIIP := ""
+	if existingInfo.IPMIIP != nil {
+		previousIPMIIP = *existingInfo.IPMIIP
+	}
+
 	// 执行更新
 	if err := database.DB.Model(&existingInfo).Updates(updateFields).Error; err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
@@ -901,11 +1169,19 @@ func UpdateNetworkInfoByIPv4(c *gin.Context) {
 
 	// 重新查询更新后的数据
 	var updatedInfo models.NetworkInfo
-	database.DB.Where("ipv4_ip = ?", ipv4IP).First(&updatedInfo)
+	database.DB.First(&updatedInfo, existingInfo.ID)
 
 	// 清除相关缓存
+	if previousIPMIIP != "" {
+		database.CacheDel(c.Request.Context(), networkCacheKey(previousIPMIIP))
+	}
 	if updatedInfo.IPMIIP != nil {
 		database.CacheDel(c.Request.Context(), networkCacheKey(*updatedInfo.IPMIIP))
+		zbxID := ""
+		if updatedInfo.ZbxID != nil {
+			zbxID = *updatedInfo.ZbxID
+		}
+		touchMachineSeen(*updatedInfo.IPMIIP, zbxID)
 	}
 
 	c.JSON(http.StatusOK, models.Response{
@@ -995,6 +1271,7 @@ func UpdateNetworkInfoByIPMI(c *gin.Context) {
 
 	// 清除相关缓存
 	database.CacheDel(c.Request.Context(), networkCacheKey(ipmiIP))
+	touchMachineSeen(ipmiIP, "")
 
 	// 重新查询更新后的数据
 	var updatedInfos []models.NetworkInfo
@@ -1115,4 +1392,3 @@ func UpdateNetworkInfoByZbxID(c *gin.Context) {
 func networkCacheKey(ipmiIP string) string {
 	return fmt.Sprintf("network_info:%s", ipmiIP)
 }
-

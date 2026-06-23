@@ -4,6 +4,7 @@ import "time"
 
 type IDCInfo struct {
 	ID        uint      `gorm:"primaryKey" json:"id"`
+	MachineID string    `gorm:"column:machine_id;not null;size:36;uniqueIndex" json:"machine_id"`
 	ZbxID     string    `gorm:"column:zbx_id;not null;size:50" json:"zbx_id"`
 	IPMIIP    string    `gorm:"column:ipmi_ip;unique;not null;size:16" json:"ipmi_ip"`
 	IDCCode   string    `gorm:"column:idc_code;not null;size:10" json:"idc_code"`
@@ -20,4 +21,3 @@ type IDCInfoResponse struct {
 	IPMIIP string `json:"ipmi_ip"`
 	SSHIP  string `json:"ssh_ip"`
 }
-

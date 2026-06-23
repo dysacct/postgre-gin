@@ -1,0 +1,10 @@
+# Keep the frontend build context small while preserving files required by Dockerfile.frontend.
+.git/
+.gitignore
+
+frontend/node_modules/
+frontend/dist/
+
+*.md
+.DS_Store
+Thumbs.db

@@ -1,60 +1,50 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
-import { searchMachines, listMachines, downloadExport } from '../api'
+import { computed, onMounted, ref } from 'vue'
+import { downloadExport, listMachines, searchMachines } from '../api'
 
-const idcCode = ref('')
-const idcName = ref('')
-const ipmiIP = ref('')
-const zbxID = ref('')
-const searchInput = ref('')
+const filters = ref({
+  search: '',
+  ipmi_ip: '',
+  zbx_id: '',
+  idc_code: '',
+  idc_name: '',
+})
 const loading = ref(false)
-
 const total = ref(0)
 const page = ref(1)
 const size = ref(300)
 const list = ref<any[]>([])
 const expanded = ref<Set<number>>(new Set())
 
-const totalPages = computed(() => Math.ceil(total.value / size.value) || 1)
+const totalPages = computed(() => Math.max(1, Math.ceil(total.value / size.value)))
+const idcCount = computed(() => new Set(list.value.map(item => item.idc_info?.idc_code).filter(Boolean)).size)
+const networkCount = computed(() => list.value.reduce((sum, item) => sum + (item.network_info?.length || 0), 0))
 
-onMounted(() => fetchData())
+onMounted(fetchData)
+
+function compact(value: any) {
+  return value === undefined || value === null || value === '' ? '-' : value
+}
+
+function buildParams() {
+  const params: Record<string, string> = { page: String(page.value), size: String(size.value) }
+  for (const [key, value] of Object.entries(filters.value)) {
+    const trimmed = value.trim()
+    if (trimmed) params[key] = trimmed
+  }
+  return params
+}
 
 async function fetchData() {
   loading.value = true
   try {
-    const params: Record<string, string> = { page: String(page.value), size: String(size.value) }
-
-    const idcCodeVal = idcCode.value.trim()
-    const idcNameVal = idcName.value.trim()
-    const ipmiIPVal = ipmiIP.value.trim()
-    const zbxIDVal = zbxID.value.trim()
-    const searchVal = searchInput.value.trim()
-
-    // 有任意精确搜索字段 → 使用 searchMachines API (多字段 OR 匹配)
-    if (idcCodeVal || idcNameVal || ipmiIPVal || zbxIDVal) {
-      if (idcCodeVal) params.idc_code = idcCodeVal
-      if (idcNameVal) params.idc_name = idcNameVal
-      if (ipmiIPVal) params.ipmi_ip = ipmiIPVal
-      if (zbxIDVal) params.zbx_id = zbxIDVal
-      const res = await searchMachines(params)
-      if (res.code === 200) {
-        total.value = res.data?.total || 0
-        list.value = res.data?.list || []
-      }
-    } else if (searchVal) {
-      // 仅全局搜索 → 跨表模糊匹配
-      const res = await listMachines({ ...params, search: searchVal })
-      if (res.code === 200) {
-        total.value = res.data?.total || 0
-        list.value = res.data?.list || []
-      }
-    } else {
-      // 无搜索条件 → 全量列表
-      const res = await listMachines(params)
-      if (res.code === 200) {
-        total.value = res.data?.total || 0
-        list.value = res.data?.list || []
-      }
+    const params = buildParams()
+    const hasStructured = !!(params.ipmi_ip || params.zbx_id || params.idc_code || params.idc_name)
+    const res = hasStructured ? await searchMachines(params) : await listMachines(params)
+    if (res.code === 200) {
+      total.value = res.data?.total || 0
+      list.value = res.data?.list || []
+      expanded.value = new Set()
     }
   } finally {
     loading.value = false
@@ -66,145 +56,170 @@ function doSearch() {
   fetchData()
 }
 
+function resetFilters() {
+  filters.value = { search: '', ipmi_ip: '', zbx_id: '', idc_code: '', idc_name: '' }
+  doSearch()
+}
+
 function doExport() {
-  const params: Record<string, string> = {}
-  if (idcCode.value.trim()) params.idc_code = idcCode.value.trim()
-  if (idcName.value.trim()) params.idc_name = idcName.value.trim()
-  if (ipmiIP.value.trim()) params.ipmi_ip = ipmiIP.value.trim()
-  if (zbxID.value.trim()) params.zbx_id = zbxID.value.trim()
-  if (searchInput.value.trim()) params.search = searchInput.value.trim()
+  const params = buildParams()
+  delete params.page
+  delete params.size
   downloadExport('/machines/export', params)
 }
 
 function goPage(p: number) {
-  page.value = p
+  page.value = Math.min(Math.max(1, p), totalPages.value)
   fetchData()
 }
 
 function toggleExpand(idx: number) {
-  const s = new Set(expanded.value)
-  if (s.has(idx)) s.delete(idx)
-  else s.add(idx)
-  expanded.value = s
+  const next = new Set(expanded.value)
+  next.has(idx) ? next.delete(idx) : next.add(idx)
+  expanded.value = next
 }
 </script>
 
 <template>
-  <div class="page-header">
-    <h2>机器信息</h2>
-  </div>
-
-  <div class="search-bar">
-    <div class="search-field">
-      <label>IPMI IP (单台查询)</label>
-      <input v-model="ipmiIP" placeholder="如 10.0.0.1" @keyup.enter="doSearch" style="min-width:130px" />
-    </div>
-    <div class="search-field">
-      <label>ZbxID</label>
-      <input v-model="zbxID" placeholder="如 10001" @keyup.enter="doSearch" style="min-width:100px" />
-    </div>
-    <div class="search-field">
-      <label>机房编码 (如 B11)</label>
-      <input v-model="idcCode" placeholder="idc_code" @keyup.enter="doSearch" style="min-width:100px" />
-    </div>
-    <div class="search-field">
-      <label>机房名称</label>
-      <input v-model="idcName" placeholder="idc_name" @keyup.enter="doSearch" style="min-width:100px" />
-    </div>
-    <div class="search-field">
-      <label>全局搜索</label>
-      <input v-model="searchInput" placeholder="IP/业务名/序列号等" @keyup.enter="doSearch" />
-    </div>
-    <button @click="doSearch">查询</button>
-    <button style="background:#fff;color:#666;border:1px solid #d9d9d9" @click="ipmiIP='';zbxID='';idcCode='';idcName='';searchInput='';doSearch()">重置</button>
-    <button style="background:#52c41a;color:#fff;border:none" @click="doExport">导出Excel</button>
-  </div>
-
-  <div class="data-card">
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="list.length === 0" class="empty">暂无数据</div>
-    <template v-else>
-      <div class="table-wrapper">
-        <table>
-          <thead>
-            <tr>
-              <th style="width:40px"></th>
-              <th>ZbxID</th>
-              <th>IPMI IP</th>
-              <th>机房编码</th>
-              <th>机房名称</th>
-              <th>SSH IP</th>
-              <th>系统类型</th>
-              <th>厂商</th>
-              <th>CPU</th>
-              <th>内存</th>
-              <th>系统盘</th>
-              <th>SSD</th>
-              <th>HDD</th>
-              <th>高度</th>
-              <th>序列号</th>
-            </tr>
-          </thead>
-          <tbody>
-            <template v-for="(item, idx) in list" :key="idx">
-              <tr>
-                <td>
-                  <span class="detail-toggle" @click="toggleExpand(idx)">
-                    {{ expanded.has(idx) ? '▼' : '▶' }}
-                  </span>
-                </td>
-                <td>{{ item.idc_info?.zbx_id }}</td>
-                <td>{{ item.idc_info?.ipmi_ip }}</td>
-                <td>{{ item.idc_info?.idc_code }}</td>
-                <td>{{ item.idc_info?.idc_name }}</td>
-                <td>{{ item.idc_info?.ssh_ip }}</td>
-                <td>{{ item.machine_info?.system_type }}</td>
-                <td>{{ item.machine_info?.manufacturer }}</td>
-                <td :title="item.machine_info?.cpu_info">{{ item.machine_info?.cpu_info }}</td>
-                <td>{{ item.machine_info?.memory_count }}</td>
-                <td>{{ item.machine_info?.system_disk }}</td>
-                <td>{{ item.machine_info?.ssd_count }}</td>
-                <td>{{ item.machine_info?.hdd_count }}</td>
-                <td>{{ item.machine_info?.server_height }}</td>
-                <td>{{ item.machine_info?.server_sn }}</td>
-              </tr>
-              <tr v-if="expanded.has(idx)" class="detail-row">
-                <td colspan="15">
-                  <div class="detail-panel">
-                    <div class="detail-grid">
-                      <template v-if="item.business_info?.business_name">
-                        <div class="detail-item"><strong>业务名:</strong>{{ item.business_info?.business_name }}</div>
-                        <div class="detail-item"><strong>业务ID:</strong>{{ item.business_info?.business_id }}</div>
-                        <div class="detail-item"><strong>业务带宽:</strong>{{ item.business_info?.business_speed }}M</div>
-                        <div class="detail-item"><strong>旧业务名:</strong>{{ item.business_info?.old_business_name }}</div>
-                      </template>
-                      <template v-if="item.network_info?.length">
-                        <div class="detail-item"><strong>网卡数:</strong>{{ item.network_info.length }}</div>
-                        <div v-for="(net, ni) in item.network_info" :key="ni" class="detail-item">
-                          <strong>网卡{{ ni+1 }}:</strong>{{ net.eth_name }} / {{ net.ipv4_ip }} / {{ net.mac_address }}
-                        </div>
-                      </template>
-                    </div>
-                  </div>
-                </td>
-              </tr>
-            </template>
-          </tbody>
-        </table>
+  <div class="space-y-4">
+    <section class="grid grid-cols-4 gap-3">
+      <div class="panel p-4">
+        <div class="text-12px text-ink-500">当前结果</div>
+        <div class="mt-2 text-26px font-800 text-ink-950">{{ total }}</div>
       </div>
-      <div class="table-footer">
-        <span class="total">共 {{ total }} 条记录</span>
-        <div class="pagination">
-          <button :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
-          <template v-for="p in totalPages" :key="p">
-            <button v-if="Math.abs(p - page) <= 3 || p === 1 || p === totalPages"
-              :class="{ active: p === page }"
-              @click="goPage(p)">{{ p }}</button>
-          </template>
-          <button :disabled="page >= totalPages" @click="goPage(page + 1)">下一页</button>
+      <div class="panel p-4">
+        <div class="text-12px text-ink-500">本页机房</div>
+        <div class="mt-2 text-26px font-800 text-ink-950">{{ idcCount }}</div>
+      </div>
+      <div class="panel p-4">
+        <div class="text-12px text-ink-500">本页网卡</div>
+        <div class="mt-2 text-26px font-800 text-ink-950">{{ networkCount }}</div>
+      </div>
+      <div class="panel p-4">
+        <div class="text-12px text-ink-500">分页</div>
+        <div class="mt-2 text-26px font-800 text-ink-950">{{ page }} / {{ totalPages }}</div>
+      </div>
+    </section>
+
+    <section class="panel p-4">
+      <div class="grid grid-cols-[1.2fr_1fr_1fr_0.8fr_1fr_auto] gap-3 items-end">
+        <label class="block">
+          <span class="text-12px font-600 text-ink-500">全局搜索</span>
+          <input v-model="filters.search" class="field mt-1 w-full" placeholder="IP / 业务名 / 序列号" @keyup.enter="doSearch" />
+        </label>
+        <label class="block">
+          <span class="text-12px font-600 text-ink-500">IPMI IP</span>
+          <input v-model="filters.ipmi_ip" class="field mt-1 w-full" placeholder="11.96.17.1" @keyup.enter="doSearch" />
+        </label>
+        <label class="block">
+          <span class="text-12px font-600 text-ink-500">ZbxID</span>
+          <input v-model="filters.zbx_id" class="field mt-1 w-full" placeholder="ipmi-..." @keyup.enter="doSearch" />
+        </label>
+        <label class="block">
+          <span class="text-12px font-600 text-ink-500">机房编码</span>
+          <input v-model="filters.idc_code" class="field mt-1 w-full" placeholder="B96" @keyup.enter="doSearch" />
+        </label>
+        <label class="block">
+          <span class="text-12px font-600 text-ink-500">机房名称</span>
+          <input v-model="filters.idc_name" class="field mt-1 w-full" placeholder="湖南移动" @keyup.enter="doSearch" />
+        </label>
+        <div class="flex gap-2">
+          <button class="btn-primary" @click="doSearch"><span class="i-lucide-search" />查询</button>
+          <button class="btn-soft" @click="resetFilters"><span class="i-lucide-rotate-ccw" />重置</button>
+          <button class="btn-soft" @click="doExport"><span class="i-lucide-download" />导出</button>
         </div>
-        <span class="page-info">{{ page }} / {{ totalPages }}</span>
       </div>
-    </template>
+    </section>
+
+    <section class="panel overflow-hidden">
+      <div v-if="loading" class="py-18 text-center text-13px text-ink-500">
+        <span class="i-lucide-loader-circle animate-spin mr-2" />加载中...
+      </div>
+      <div v-else-if="list.length === 0" class="py-18 text-center text-13px text-ink-500">暂无数据</div>
+      <template v-else>
+        <div class="overflow-auto">
+          <table class="min-w-360 w-full border-collapse">
+            <thead>
+              <tr>
+                <th class="th w-10"></th>
+                <th class="th">ZbxID</th>
+                <th class="th">IPMI IP</th>
+                <th class="th">机房</th>
+                <th class="th">SSH IP</th>
+                <th class="th">系统</th>
+                <th class="th">厂商</th>
+                <th class="th">CPU</th>
+                <th class="th">内存</th>
+                <th class="th">磁盘</th>
+                <th class="th">高度</th>
+                <th class="th">交换机端口</th>
+                <th class="th">序列号</th>
+              </tr>
+            </thead>
+            <tbody>
+              <template v-for="(item, idx) in list" :key="idx">
+                <tr class="hover:bg-[#fbfcff]">
+                  <td class="td">
+                    <button class="h-7 w-7 rounded-1.5 hover:bg-[#eef3fb]" @click="toggleExpand(idx)">
+                      <span :class="expanded.has(idx) ? 'i-lucide-chevron-down' : 'i-lucide-chevron-right'" />
+                    </button>
+                  </td>
+                  <td class="td font-mono text-12px">{{ compact(item.idc_info?.zbx_id) }}</td>
+                  <td class="td font-mono">{{ compact(item.idc_info?.ipmi_ip) }}</td>
+                  <td class="td">
+                    <div class="font-600 text-ink-900">{{ compact(item.idc_info?.idc_code) }}</div>
+                    <div class="mt-0.5 max-w-56 truncate text-12px text-ink-500">{{ compact(item.idc_info?.idc_name) }}</div>
+                  </td>
+                  <td class="td font-mono">{{ compact(item.idc_info?.ssh_ip) }}</td>
+                  <td class="td">{{ compact(item.machine_info?.system_type) }}</td>
+                  <td class="td">{{ compact(item.machine_info?.manufacturer) }}</td>
+                  <td class="td max-w-72 truncate" :title="item.machine_info?.cpu_info">{{ compact(item.machine_info?.cpu_info) }}</td>
+                  <td class="td">{{ compact(item.machine_info?.memory_count) }}</td>
+                  <td class="td">{{ compact(item.machine_info?.system_disk) }} / SSD {{ compact(item.machine_info?.ssd_count) }} / HDD {{ compact(item.machine_info?.hdd_count) }} / 系统直通 {{ compact(item.machine_info?.sys_hdd_count) }}</td>
+                  <td class="td">{{ compact(item.machine_info?.server_height) }}</td>
+                  <td class="td font-mono">{{ compact(item.machine_info?.switch_port) }}</td>
+                  <td class="td font-mono">{{ compact(item.machine_info?.server_sn) }}</td>
+                </tr>
+                <tr v-if="expanded.has(idx)">
+                  <td colspan="13" class="border-t border-[#edf1f7] bg-[#f8fafc] p-4">
+                    <div class="grid grid-cols-[1fr_2fr] gap-4">
+                      <div class="rounded-2 border border-[#e4e9f1] bg-white p-4">
+                        <div class="mb-3 text-13px font-700 text-ink-950">业务信息</div>
+                        <div class="grid grid-cols-2 gap-3 text-12px">
+                          <div><span class="text-ink-500">业务名</span><div class="mt-1 text-ink-900">{{ compact(item.business_info?.business_name) }}</div></div>
+                          <div><span class="text-ink-500">业务ID</span><div class="mt-1 text-ink-900">{{ compact(item.business_info?.business_id) }}</div></div>
+                          <div><span class="text-ink-500">带宽</span><div class="mt-1 text-ink-900">{{ compact(item.business_info?.business_speed) }}</div></div>
+                          <div><span class="text-ink-500">旧业务</span><div class="mt-1 text-ink-900">{{ compact(item.business_info?.old_business_name) }}</div></div>
+                        </div>
+                      </div>
+                      <div class="rounded-2 border border-[#e4e9f1] bg-white p-4">
+                        <div class="mb-3 flex items-center justify-between">
+                          <div class="text-13px font-700 text-ink-950">网络信息</div>
+                          <span class="rounded-full bg-[#eef4ff] px-2 py-0.5 text-11px text-brand-600">{{ item.network_info?.length || 0 }} 条</span>
+                        </div>
+                        <div class="grid grid-cols-2 gap-2 text-12px">
+                          <div v-for="(net, ni) in item.network_info || []" :key="ni" class="rounded-1.5 bg-[#f8fafc] px-3 py-2">
+                            <div class="font-700 text-ink-900">{{ compact(net.eth_name) }} / {{ compact(net.net_type) }}</div>
+                            <div class="mt-1 font-mono text-ink-500">{{ compact(net.ipv4_ip) }} / {{ compact(net.mac_address) }}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+                </tr>
+              </template>
+            </tbody>
+          </table>
+        </div>
+        <div class="border-t border-[#edf1f7] px-4 py-3 flex items-center justify-between">
+          <div class="text-12px text-ink-500">共 {{ total }} 条记录</div>
+          <div class="flex items-center gap-2">
+            <button class="btn-soft" :disabled="page <= 1" @click="goPage(page - 1)">上一页</button>
+            <span class="text-13px text-ink-600">{{ page }} / {{ totalPages }}</span>
+            <button class="btn-soft" :disabled="page >= totalPages" @click="goPage(page + 1)">下一页</button>
+          </div>
+        </div>
+      </template>
+    </section>
   </div>
 </template>

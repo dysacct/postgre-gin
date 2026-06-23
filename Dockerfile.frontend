@@ -1,13 +1,13 @@
-FROM node:20-alpine AS builder
+FROM 1181.s.kuaicdn.cn:11818/docker.io/library/node:20-alpine AS builder
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@9.15.0 --activate
 COPY frontend/package.json frontend/pnpm-lock.yaml* ./
-RUN pnpm install
+RUN pnpm install --frozen-lockfile
 COPY frontend/ .
 RUN pnpm build
 
-FROM openresty/openresty:1.25.3.1-0-alpine
+FROM 1181.s.kuaicdn.cn:11818/docker.io/openresty/openresty:1.25.3.1-0-alpine
 COPY --from=builder /app/dist /app/dist
 COPY openresty/nginx.conf /usr/local/openresty/nginx/conf/nginx.conf
-EXPOSE 34186
+EXPOSE 34188
 CMD ["/usr/local/openresty/bin/openresty", "-g", "daemon off;"]

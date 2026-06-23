@@ -62,6 +62,10 @@ func main() {
 		auth.DELETE("/machine/:ipmi_ip", handlers.DeleteMachine)                         // 删除机器
 		auth.DELETE("/machines/:ipmi_ip/business", handlers.DeleteBusinessInfo)          // 删除业务信息
 		auth.DELETE("/machines/:ipmi_ip/machine-info", handlers.DeleteMachineInfo)       // 删除机器硬件信息
+		auth.GET("/machine-archives", handlers.ListMachineArchives)                      // 获取归档机器列表
+		auth.GET("/machine-archives/export", handlers.ExportMachineArchives)             // 导出归档机器信息
+		auth.GET("/machine-archives/detail/:batch_id", handlers.GetMachineArchive)       // 获取归档机器详情
+		auth.GET("/machine-sync-states", handlers.GetMachineSyncStates)                  // 获取机器同步状态
 
 		// 网络信息相关路由
 		auth.GET("/network-info", handlers.ListNetworkInfo)                          // 获取网络信息列表（支持多字段过滤）
@@ -95,10 +99,10 @@ func main() {
 		auth.GET("/deletion/records", handlers.GetDeletedRecords) // 查询已删除记录
 
 		// Excel 导出
-		auth.GET("/machines/export", handlers.ExportMachines)           // 导出机器信息
-		auth.GET("/network-info/export", handlers.ExportNetworkInfo)    // 导出网络信息
-		auth.GET("/business-info/export", handlers.ExportBusinessInfo)  // 导出业务信息
-		auth.GET("/idc_info/export", handlers.ExportIDCInfo)            // 导出SSH信息
+		auth.GET("/machines/export", handlers.ExportMachines)               // 导出机器信息
+		auth.GET("/network-info/export", handlers.ExportNetworkInfo)        // 导出网络信息
+		auth.GET("/business-info/export", handlers.ExportBusinessInfo)      // 导出业务信息
+		auth.GET("/idc_info/export", handlers.ExportIDCInfo)                // 导出SSH信息
 		auth.GET("/deletion/records/export", handlers.ExportDeletedRecords) // 导出删除记录
 	}
 
@@ -119,6 +123,8 @@ func main() {
 		for {
 			time.Sleep(12 * time.Hour)
 			handlers.CleanupExpiredRecords()
+			handlers.MarkStaleAndArchiveMachines()
+			handlers.CleanupExpiredMachineArchives()
 		}
 	}()
 
@@ -133,4 +139,3 @@ func main() {
 	srv.Shutdown(ctx)
 	fmt.Println("服务已关闭，程序安全退出")
 }
-

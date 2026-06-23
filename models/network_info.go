@@ -4,6 +4,7 @@ import "time"
 
 type NetworkInfo struct {
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	MachineID    *string   `gorm:"column:machine_id;size:36;index" json:"machine_id,omitempty"`
 	IPMIIP       *string   `gorm:"column:ipmi_ip;size:16;index" json:"ipmi_ip,omitempty"`
 	IPv4IP       *string   `gorm:"column:ipv4_ip;size:20;uniqueIndex:idx_ipv4_unique,where:ipv4_ip IS NOT NULL" json:"ipv4_ip,omitempty"`
 	ZbxID        *string   `gorm:"column:zbx_id;size:50;index" json:"zbx_id,omitempty"`
@@ -23,4 +24,3 @@ type NetworkInfo struct {
 }
 
 func (NetworkInfo) TableName() string { return "network_info" }
-

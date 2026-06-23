@@ -38,29 +38,34 @@ type ListResponse struct {
 // 用于Scan的中间结构体
 type ScanResult struct {
 	// IDC信息
-	ID        uint      `gorm:"column:id"`
-	ZbxID     string    `gorm:"column:zbx_id"`
-	IDCCode   string    `gorm:"column:idc_code"`
-	IDCName   string    `gorm:"column:idc_name"`
-	IPMIIP    string    `gorm:"column:ipmi_ip"`
-	SSHIP     string    `gorm:"column:ssh_ip"`
-	CreatedAt time.Time `gorm:"column:created_at"`
+	ID           uint      `gorm:"column:id"`
+	IDCMachineID string    `gorm:"column:machine_id"`
+	ZbxID        string    `gorm:"column:zbx_id"`
+	IDCCode      string    `gorm:"column:idc_code"`
+	IDCName      string    `gorm:"column:idc_name"`
+	IPMIIP       string    `gorm:"column:ipmi_ip"`
+	SSHIP        string    `gorm:"column:ssh_ip"`
+	CreatedAt    time.Time `gorm:"column:created_at"`
 
 	// Machine信息 (可能为空)
-	MachineID        *uint      `gorm:"column:m.id"`
+	MachineRowID     *uint      `gorm:"column:m.id"`
+	MachineMachineID *string    `gorm:"column:machine_machine_id"`
 	SystemType       *string    `gorm:"column:system_type"`
 	Manufacturer     *string    `gorm:"column:manufacturer"`
 	ServerSN         *string    `gorm:"column:server_sn"`
 	SystemDisk       *string    `gorm:"column:system_disk"`
 	SSDCount         *string    `gorm:"column:ssd_count"`
 	HDDCount         *string    `gorm:"column:hdd_count"`
+	SysHDDCount      *string    `gorm:"column:sys_hdd_count"`
 	MemoryCount      *string    `gorm:"column:memory_count"`
 	CPUInfo          *string    `gorm:"column:cpu_info"`
 	ServerHeight     *string    `gorm:"column:server_height"`
+	SwitchPort       *string    `gorm:"column:switch_port"`
 	MachineCreatedAt *time.Time `gorm:"column:m.created_at"`
 
 	// Business信息 (可能为空)
-	BusinessID        *uint      `gorm:"column:b.id"`
+	BusinessRowID     *uint      `gorm:"column:b.id"`
+	BusinessMachineID *string    `gorm:"column:business_machine_id"`
 	BusinessName      *string    `gorm:"column:business_name"`
 	BusinessIDField   *string    `gorm:"column:business_id"`
 	OldBusinessName   *string    `gorm:"column:old_business_name"`
@@ -114,18 +119,18 @@ func ListMachines(c *gin.Context) {
 	var scanResults []ScanResult
 
 	query := database.DB.Table("idc_info i").
-		Select(`i.id, i.zbx_id, i.idc_code, i.idc_name, i.ipmi_ip, i.ssh_ip, i.created_at,
-						m.id as "m.id", m.system_type, m.manufacturer, m.server_sn, m.system_disk, 
-						m.ssd_count, m.hdd_count, m.memory_count, m.cpu_info, m.server_height, m.created_at as "m.created_at",
-						b.id as "b.id", b.business_name, b.business_id, b.old_business_name, b.old_business_id, 
+		Select(`i.id, i.machine_id, i.zbx_id, i.idc_code, i.idc_name, i.ipmi_ip, i.ssh_ip, i.created_at,
+						m.id as "m.id", m.machine_id as machine_machine_id, m.system_type, m.manufacturer, m.server_sn, m.system_disk,
+						m.ssd_count, m.hdd_count, m.sys_hdd_count, m.memory_count, m.cpu_info, m.server_height, m.switch_port, m.created_at as "m.created_at",
+						b.id as "b.id", b.machine_id as business_machine_id, b.business_name, b.business_id, b.old_business_name, b.old_business_id,
 						b.business_speed, b.old_business_speed, b.created_at as "b.created_at",
 						COALESCE(n.networks, '[]') as network_info`).
-		Joins("LEFT JOIN machine_info m ON m.ipmi_ip = i.ipmi_ip").
-		Joins("LEFT JOIN business_info b ON b.ipmi_ip = i.ipmi_ip").
+		Joins("LEFT JOIN machine_info m ON m.machine_id = i.machine_id OR (m.machine_id = '' AND m.ipmi_ip = i.ipmi_ip)").
+		Joins("LEFT JOIN business_info b ON b.machine_id = i.machine_id OR (b.machine_id = '' AND b.ipmi_ip = i.ipmi_ip)").
 		Joins(`LEFT JOIN (
-			    SELECT zbx_id, json_agg(network_info.*) as networks
-					FROM network_info GROUP BY zbx_id
-			) n ON n.zbx_id = i.zbx_id`)
+			    SELECT machine_id, zbx_id, json_agg(network_info.*) as networks
+					FROM network_info GROUP BY machine_id, zbx_id
+			) n ON n.machine_id = i.machine_id OR (n.machine_id IS NULL AND n.zbx_id = i.zbx_id)`)
 
 	// 全局搜索 (任意字段模糊匹配)
 	if search != "" {
@@ -136,11 +141,12 @@ func ListMachines(c *gin.Context) {
 												 i.ipmi_ip ILIKE ? OR
 												 i.ssh_ip ILIKE ? OR
 												 m.ssd_count ILIKE ? OR
-												 m.hdd_count ILIKE ? OR
-												 b.business_name ILIKE ? OR
+											 m.hdd_count ILIKE ? OR
+											 m.sys_hdd_count ILIKE ? OR
+											 b.business_name ILIKE ? OR
 												 EXISTS (SELECT 1 FROM network_info n WHERE n.zbx_id = i.zbx_id AND (
 												 	   n.ipv4_ip ILIKE ? OR n.mac_address ILIKE ?
-												 ))`, like, like, like, like, like, like, like, like, like)
+										 ))`, like, like, like, like, like, like, like, like, like, like)
 	}
 
 	// 其他过滤条件
@@ -175,11 +181,19 @@ func ListMachines(c *gin.Context) {
 		like := "%" + hddCount + "%"
 		query = query.Where("m.hdd_count ILIKE ?", like)
 	}
+	if sysHDDCount := strings.TrimSpace(c.Query("sys_hdd_count")); sysHDDCount != "" {
+		like := "%" + sysHDDCount + "%"
+		query = query.Where("m.sys_hdd_count ILIKE ?", like)
+	}
 
 	// 服务器高度模糊查询 (如: 1U, 2U, 4U等)
 	if serverHeight := strings.TrimSpace(c.Query("server_height")); serverHeight != "" {
 		like := "%" + serverHeight + "%"
 		query = query.Where("m.server_height ILIKE ?", like)
+	}
+	if switchPort := strings.TrimSpace(c.Query("switch_port")); switchPort != "" {
+		like := "%" + switchPort + "%"
+		query = query.Where("m.switch_port ILIKE ?", like)
 	}
 
 	// 排序
@@ -198,6 +212,7 @@ func ListMachines(c *gin.Context) {
 		item := MachineListItem{
 			IDCInfo: models.IDCInfo{
 				ID:        row.ID,
+				MachineID: row.IDCMachineID,
 				ZbxID:     row.ZbxID,
 				IDCCode:   row.IDCCode,
 				IDCName:   row.IDCName,
@@ -209,9 +224,14 @@ func ListMachines(c *gin.Context) {
 		}
 
 		// 构建Machine信息 (如果存在)
-		if row.MachineID != nil {
+		if row.MachineRowID != nil {
+			machineID := row.IDCMachineID
+			if row.MachineMachineID != nil && *row.MachineMachineID != "" {
+				machineID = *row.MachineMachineID
+			}
 			item.MachineInfo = &models.MachineInfo{
-				ID:           *row.MachineID,
+				ID:           *row.MachineRowID,
+				MachineID:    machineID,
 				ZbxID:        row.ZbxID,
 				IPMIIP:       row.IPMIIP, // 添加缺失的IPMI IP字段
 				SystemType:   *row.SystemType,
@@ -220,17 +240,24 @@ func ListMachines(c *gin.Context) {
 				SystemDisk:   *row.SystemDisk,
 				SSDCount:     *row.SSDCount,
 				HDDCount:     *row.HDDCount,
+				SysHDDCount:  *row.SysHDDCount,
 				MemoryCount:  *row.MemoryCount,
 				CPUInfo:      *row.CPUInfo,
 				ServerHeight: *row.ServerHeight,
+				SwitchPort:   *row.SwitchPort,
 				CreatedAt:    *row.MachineCreatedAt,
 			}
 		}
 
 		// 构建Business信息 (如果存在)
-		if row.BusinessID != nil {
+		if row.BusinessRowID != nil {
+			machineID := row.IDCMachineID
+			if row.BusinessMachineID != nil && *row.BusinessMachineID != "" {
+				machineID = *row.BusinessMachineID
+			}
 			item.BusinessInfo = &models.BusinessInfo{
-				ID:               *row.BusinessID,
+				ID:               *row.BusinessRowID,
+				MachineID:        machineID,
 				ZbxID:            row.ZbxID,
 				IPMIIP:           row.IPMIIP, // 添加缺失的IPMI IP字段
 				BusinessName:     *row.BusinessName,
@@ -274,4 +301,3 @@ func ListMachines(c *gin.Context) {
 	database.CacheSet(ctx, cacheKey, jsonData, 5*time.Minute)
 	c.JSON(200, resp)
 }
-

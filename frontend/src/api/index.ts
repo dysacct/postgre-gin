@@ -48,6 +48,20 @@ export function getMachine(ipmiIp: string) {
   return request(`/api/machine/${encodeURIComponent(ipmiIp)}`)
 }
 
+export function listMachineArchives(params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString()
+  return request(`/api/machine-archives?${qs}`)
+}
+
+export function getMachineArchive(batchId: string) {
+  return request(`/api/machine-archives/detail/${encodeURIComponent(batchId)}`)
+}
+
+export function listMachineSyncStates(params: Record<string, string>) {
+  const qs = new URLSearchParams(params).toString()
+  return request(`/api/machine-sync-states?${qs}`)
+}
+
 // ---- Network Info (网络信息) ----
 export function listNetworkInfo(params: Record<string, string>) {
   const qs = new URLSearchParams(params).toString()

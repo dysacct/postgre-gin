@@ -20,6 +20,7 @@ const size = ref(300)
 const list = ref<any[]>([])
 
 const totalPages = computed(() => Math.ceil(total.value / size.value) || 1)
+const topIDCStats = computed(() => stats.value?.idc_stats?.slice(0, 8) || [])
 
 onMounted(() => {
   fetchStats()
@@ -74,6 +75,11 @@ function goPage(p: number) {
   page.value = p
   fetchData()
 }
+
+function idcTitle(item: any) {
+  if (item.idc_name) return `${item.idc_code} · ${item.idc_name}`
+  return item.idc_code || '未命名机房'
+}
 </script>
 
 <template>
@@ -87,10 +93,10 @@ function goPage(p: number) {
       <div class="stat-label">网络记录总数</div>
       <div class="stat-sub">全量</div>
     </div>
-    <div v-for="s in stats.idc_stats?.slice(0,8)" :key="s.idc_code" class="stat-card">
+    <div v-for="s in topIDCStats" :key="s.idc_code" class="stat-card">
       <div class="stat-value">{{ s.count }}</div>
-      <div class="stat-label">机房 {{ s.idc_code }}</div>
-      <div class="stat-sub">网络记录数</div>
+      <div class="stat-label" :title="idcTitle(s)">{{ idcTitle(s) }}</div>
+      <div class="stat-sub">机房网络记录数</div>
     </div>
   </div>
 

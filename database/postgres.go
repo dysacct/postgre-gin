@@ -42,10 +42,42 @@ func ConnectDB() {
 		&models.NetworkInfo{},
 		&models.VersionInfo{},
 		&models.DeletedRecord{},
+		&models.MachineSyncState{},
+		&models.MachineArchiveBatch{},
+		&models.ArchivedIDCInfo{},
+		&models.ArchivedMachineInfo{},
+		&models.ArchivedBusinessInfo{},
+		&models.ArchivedNetworkInfo{},
 	)
+	seedMachineSyncStates()
 
 	// 初始化用户（只在第一次运行时候插入）
 	seedUsers()
+}
+
+func seedMachineSyncStates() {
+	if DB == nil {
+		return
+	}
+
+	DB.Exec(`
+		INSERT INTO machine_sync_state (ipmi_ip, machine_id, zbx_id, status, last_seen_at, created_at, updated_at)
+		SELECT i.ipmi_ip, i.machine_id, i.zbx_id, 'active', NOW(), NOW(), NOW()
+		FROM idc_info i
+		WHERE NOT EXISTS (
+			SELECT 1 FROM machine_sync_state s WHERE s.ipmi_ip = i.ipmi_ip
+		)
+	`)
+
+	DB.Exec(`
+		UPDATE machine_sync_state s
+		SET machine_id = i.machine_id,
+		    zbx_id = i.zbx_id,
+		    updated_at = NOW()
+		FROM idc_info i
+		WHERE s.ipmi_ip = i.ipmi_ip
+		  AND (s.machine_id IS NULL OR s.machine_id = '')
+	`)
 }
 
 func seedUsers() {

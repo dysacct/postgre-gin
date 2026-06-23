@@ -23,6 +23,12 @@ const routes = [
     meta: { title: '网络信息' },
   },
   {
+    path: '/archives',
+    name: 'ArchiveMachines',
+    component: () => import('../views/ArchiveMachines.vue'),
+    meta: { title: '归档机器' },
+  },
+  {
     path: '/idc-info',
     name: 'IDCInfo',
     component: () => import('../views/IDCInfo.vue'),
