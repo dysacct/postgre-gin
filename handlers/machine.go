@@ -212,6 +212,26 @@ func CreateMachine(c *gin.Context) {
 			if err := tx.First(&responseIDC, existingIDC.ID).Error; err != nil {
 				return err
 			}
+			if err := touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now); err != nil {
+				return err
+			}
+			return reconcileRestoredArchiveForCurrentMachine(tx, responseIDC.IPMIIP, now)
+		}
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
+
+		if err := restoreMachineFromArchive(tx, idc.IPMIIP, now); err != nil {
+			return err
+		}
+		err = tx.First(&existingIDC, "ipmi_ip = ?", idc.IPMIIP).Error
+		if err == nil {
+			if err := updateIDCAndRelatedZbxID(tx, &existingIDC, idc); err != nil {
+				return err
+			}
+			if err := tx.First(&responseIDC, existingIDC.ID).Error; err != nil {
+				return err
+			}
 			return touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now)
 		}
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
@@ -223,7 +243,10 @@ func CreateMachine(c *gin.Context) {
 		}
 		created = true
 		responseIDC = idc
-		return touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now)
+		if err := touchMachineSyncState(tx, responseIDC.IPMIIP, responseIDC.ZbxID, now); err != nil {
+			return err
+		}
+		return reconcileRestoredArchiveForCurrentMachine(tx, responseIDC.IPMIIP, now)
 	}); err != nil {
 		c.JSON(http.StatusInternalServerError, models.Response{
 			Code:    500,
@@ -471,7 +494,11 @@ func UpdateMachineInfo(c *gin.Context) {
 			if err := tx.Create(&machineInfo).Error; err != nil {
 				return err
 			}
-			return touchMachineSyncState(tx, ipmiIP, idc.ZbxID, time.Now())
+			now := time.Now()
+			if err := touchMachineSyncState(tx, ipmiIP, idc.ZbxID, now); err != nil {
+				return err
+			}
+			return reconcileRestoredArchiveForCurrentMachine(tx, ipmiIP, now)
 		}
 
 		if existingMachine.ServerSN != "" && machineInfo.ServerSN != "" && existingMachine.ServerSN != machineInfo.ServerSN {
@@ -552,7 +579,11 @@ func UpdateMachineInfo(c *gin.Context) {
 		if err := tx.First(&machineInfo, existingMachine.ID).Error; err != nil {
 			return err
 		}
-		return touchMachineSyncState(tx, ipmiIP, idc.ZbxID, time.Now())
+		now := time.Now()
+		if err := touchMachineSyncState(tx, ipmiIP, idc.ZbxID, now); err != nil {
+			return err
+		}
+		return reconcileRestoredArchiveForCurrentMachine(tx, ipmiIP, now)
 	}); err != nil {
 		status := http.StatusInternalServerError
 		message := "保存机器硬件信息失败: " + err.Error()

@@ -56,13 +56,14 @@ func touchMachineSyncState(tx *gorm.DB, ipmiIP string, zbxID string, seenAt time
 	return tx.Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "ipmi_ip"}},
 		DoUpdates: clause.Assignments(map[string]interface{}{
-			"machine_id":     machineID,
-			"zbx_id":         zbxID,
-			"status":         models.MachineStatusActive,
-			"last_seen_at":   seenAt,
-			"first_stale_at": nil,
-			"archived_at":    nil,
-			"updated_at":     seenAt,
+			"machine_id":            machineID,
+			"zbx_id":                zbxID,
+			"status":                models.MachineStatusActive,
+			"last_seen_at":          seenAt,
+			"first_stale_at":        nil,
+			"archived_at":           nil,
+			"last_archive_batch_id": "",
+			"updated_at":            seenAt,
 		}),
 	}).Create(&state).Error
 }
@@ -249,9 +250,65 @@ func archiveMachineByIPMI(tx *gorm.DB, ipmiIP string, reason string, archivedAt 
 	}).Error
 }
 
+func markMachineArchiveRestored(tx *gorm.DB, batchID string, restoreAt time.Time) error {
+	updateFields := map[string]interface{}{"is_restored": true, "restored_at": restoreAt}
+	if err := tx.Model(&models.ArchivedIDCInfo{}).Where("archive_batch_id = ?", batchID).Updates(updateFields).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.ArchivedMachineInfo{}).Where("archive_batch_id = ?", batchID).Updates(updateFields).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.ArchivedBusinessInfo{}).Where("archive_batch_id = ?", batchID).Updates(updateFields).Error; err != nil {
+		return err
+	}
+	if err := tx.Model(&models.ArchivedNetworkInfo{}).Where("archive_batch_id = ?", batchID).Updates(updateFields).Error; err != nil {
+		return err
+	}
+
+	return tx.Model(&models.MachineArchiveBatch{}).Where("archive_batch_id = ?", batchID).Updates(map[string]interface{}{
+		"status":      models.ArchiveStatusRestored,
+		"restored_at": restoreAt,
+	}).Error
+}
+
+func reconcileRestoredArchiveForCurrentMachine(tx *gorm.DB, ipmiIP string, restoreAt time.Time) error {
+	var batch models.MachineArchiveBatch
+	err := tx.Where("ipmi_ip = ? AND status = ? AND expires_at > ? AND archive_reason <> ?", ipmiIP, models.ArchiveStatusArchived, restoreAt, "replacement").
+		Order("archived_at DESC").
+		First(&batch).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+
+	var archivedMachine models.ArchivedMachineInfo
+	if err := tx.First(&archivedMachine, "archive_batch_id = ?", batch.ArchiveBatchID).Error; err != nil {
+		return nil
+	}
+	if archivedMachine.ServerSN == "" {
+		return nil
+	}
+
+	var currentMachine models.MachineInfo
+	err = tx.First(&currentMachine, "ipmi_ip = ?", ipmiIP).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	if currentMachine.ServerSN == "" || currentMachine.ServerSN != archivedMachine.ServerSN {
+		return nil
+	}
+
+	return markMachineArchiveRestored(tx, batch.ArchiveBatchID, restoreAt)
+}
+
 func restoreMachineFromArchive(tx *gorm.DB, ipmiIP string, restoreAt time.Time) error {
 	var batch models.MachineArchiveBatch
-	err := tx.Where("ipmi_ip = ? AND status = ? AND expires_at > ?", ipmiIP, models.ArchiveStatusArchived, restoreAt).
+	err := tx.Where("ipmi_ip = ? AND status = ? AND expires_at > ? AND archive_reason <> ?", ipmiIP, models.ArchiveStatusArchived, restoreAt, "replacement").
 		Order("archived_at DESC").
 		First(&batch).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -355,24 +412,7 @@ func restoreMachineFromArchive(tx *gorm.DB, ipmiIP string, restoreAt time.Time) 
 		}
 	}
 
-	updateFields := map[string]interface{}{"is_restored": true, "restored_at": restoreAt}
-	if err := tx.Model(&models.ArchivedIDCInfo{}).Where("archive_batch_id = ?", batch.ArchiveBatchID).Updates(updateFields).Error; err != nil {
-		return err
-	}
-	if err := tx.Model(&models.ArchivedMachineInfo{}).Where("archive_batch_id = ?", batch.ArchiveBatchID).Updates(updateFields).Error; err != nil {
-		return err
-	}
-	if err := tx.Model(&models.ArchivedBusinessInfo{}).Where("archive_batch_id = ?", batch.ArchiveBatchID).Updates(updateFields).Error; err != nil {
-		return err
-	}
-	if err := tx.Model(&models.ArchivedNetworkInfo{}).Where("archive_batch_id = ?", batch.ArchiveBatchID).Updates(updateFields).Error; err != nil {
-		return err
-	}
-
-	return tx.Model(&batch).Updates(map[string]interface{}{
-		"status":      models.ArchiveStatusRestored,
-		"restored_at": restoreAt,
-	}).Error
+	return markMachineArchiveRestored(tx, batch.ArchiveBatchID, restoreAt)
 }
 
 func MarkStaleAndArchiveMachines() {
@@ -401,6 +441,29 @@ func MarkStaleAndArchiveMachines() {
 			database.CacheDel(context.Background(), cacheKey(state.IPMIIP), networkCacheKey(state.IPMIIP))
 		}
 	}
+}
+
+func ReconcileCurrentMachineArchives() {
+	now := time.Now()
+	var batches []models.MachineArchiveBatch
+	err := database.DB.Table("machine_archive_batches b").
+		Select("DISTINCT b.*").
+		Joins("JOIN archived_machine_info a ON a.archive_batch_id = b.archive_batch_id").
+		Joins("JOIN machine_info m ON m.ipmi_ip = b.ipmi_ip AND m.server_sn = a.server_sn").
+		Where("b.status = ? AND b.expires_at > ? AND b.archive_reason <> ? AND a.server_sn <> ''", models.ArchiveStatusArchived, now, "replacement").
+		Find(&batches).Error
+	if err != nil || len(batches) == 0 {
+		return
+	}
+
+	_ = database.DB.Transaction(func(tx *gorm.DB) error {
+		for _, batch := range batches {
+			if err := markMachineArchiveRestored(tx, batch.ArchiveBatchID, now); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
 }
 
 func CleanupExpiredMachineArchives() {

@@ -118,11 +118,14 @@ func main() {
 		}
 	}()
 
+	handlers.ReconcileCurrentMachineArchives()
+
 	// 启动过期删除记录清理（每12小时执行一次）
 	go func() {
 		for {
 			time.Sleep(12 * time.Hour)
 			handlers.CleanupExpiredRecords()
+			handlers.ReconcileCurrentMachineArchives()
 			handlers.MarkStaleAndArchiveMachines()
 			handlers.CleanupExpiredMachineArchives()
 		}
